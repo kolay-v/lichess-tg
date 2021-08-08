@@ -1,0 +1,49 @@
+{
+  "name": "chessbot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.js",
+  "scripts": {
+    "lint": "eslint --ext .js src",
+    "lint:fix": "eslint --fix --ext .js src",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon -w src src/index.js"
+  },
+  "author": "Denis Efremov <efremov.a.denis@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:Piterden/chessbot.git"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "chess": "^0.4.9",
+    "dotenv": "^7.0.0",
+    "knex": "^0.20.13",
+    "module-alias": "^2.2.2",
+    "mysql2": "^2.2.5",
+    "ndjson": "^2.0.0",
+    "node-fetch": "^2.6.1",
+    "telegraf": "^3.37.0"
+  },
+  "devDependencies": {
+    "@types/node": "^16.4.13",
+    "@types/node-fetch": "^2.5.12",
+    "babel-eslint": "^10.1.0",
+    "eslint": "^5.16.0",
+    "eslint-config-standard": "^12.0.0",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-node": "^8.0.1",
+    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-standard": "^4.1.0",
+    "husky": "^3.1.0",
+    "nodemon": "^2.0.7"
+  },
+  "_moduleAliases": {
+    "@": "./src"
+  },
+  "husky": {
+    "hooks": {
+      "pre-push": "npm run lint"
+    }
+  }
+}
