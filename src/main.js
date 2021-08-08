@@ -91,13 +91,37 @@ const render = (board, selection) => {
   return Markup.inlineKeyboard(boardMarkup)
 }
 
-bot.start(async ctx => {
+bot.start(ctx => ctx.reply('Send me challenge id or /seek command (TODO)')) // TODO
+bot.hears(/^[a-zA-Z\d]{4,}$/, ctx => fetch(`https://lichess.org/api/challenge/${ctx.message.text}/accept`, { headers, method: 'POST' }).catch(console.error))
+
+bot.command('seek', () => {
+  // fetch('https://lichess.org/api/board/seek', {
+  //   headers,
+  //   method: 'POST',
+  //   body: new URLSearchParams({
+  //     time: '30',
+  //     increment: '20',
+  //   }),
+  // }).catch(console.error)
+})
+
+bot.action(/select_(?<selection>[a-h][1-9])/, ctx => {
+  ctx.editMessageReplyMarkup(render(board.squares, ctx.match.groups.selection))
+  ctx.answerCbQuery()
+})
+bot.action(/^move_(?<move>(?:[a-h][1-9]){2})$/, ctx => {
+  fetch(`https://lichess.org/api/board/game/${gameId}/move/${ctx.match.groups.move}`, { headers, method: 'POST' }).catch(console.error)
+  ctx.answerCbQuery()
+})
+
+const main = async () => {
+  await bot.launch()
   const stream = await fetch('https://lichess.org/api/stream/event', { headers })
     .then(response => response.body)
   stream.pipe(ndjson.parse()).on('data', async event => {
     if (event.type === 'gameStart') {
       gameId = event.game.id
-      const msg = await ctx.reply(`started game with id ${gameId}`)
+      const msg = await bot.telegram.sendMessage(process.env.BOT_CHAT, `started game with id ${gameId}`)
       const gameStream = await fetch(`https://lichess.org/api/board/game/stream/${gameId}`, { headers })
         .then(response => response.body)
       gameStream.pipe(ndjson.parse()).on('data', gameEvent => {
@@ -115,23 +139,6 @@ bot.start(async ctx => {
       })
     }
   })
-  fetch('https://lichess.org/api/board/seek', {
-    headers,
-    method: 'POST',
-    body: new URLSearchParams({
-      time: '30',
-      increment: '20',
-    }),
-  }).catch(console.error)
-})
+}
 
-bot.action(/select_(?<selection>[a-h][1-9])/, ctx => {
-  ctx.editMessageReplyMarkup(render(board.squares, ctx.match.groups.selection))
-  ctx.answerCbQuery()
-})
-bot.action(/^move_(?<move>(?:[a-h][1-9]){2})$/, ctx => {
-  fetch(`https://lichess.org/api/board/game/${gameId}/move/${ctx.match.groups.move}`, { headers, method: 'POST' }).catch(console.error)
-  ctx.answerCbQuery()
-})
-
-bot.launch()
+main()
