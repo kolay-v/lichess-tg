@@ -5,8 +5,8 @@ const ndjson = require('ndjson')
 const { Markup } = require('telegraf')
 require('dotenv').config()
 
+let gameMoves = ''
 let gameId
-let board = chess.createSimple().getStatus().board
 
 const emodji = {
   black: {
@@ -32,9 +32,28 @@ const headers = {
 }
 const bot = new Telegraf(process.env.BOT_TOKEN)
 
-const render = (board, selection) => {
-  const horizontal = 'hgfedcba'.split('')
+const squareToString = ({ file, rank }) => `${file}${rank}`
+
+const getGame = moves => {
+  const game = chess.createSimple()
+  moves.split(' ').filter(Boolean).forEach(move => {
+    game.move(move.substring(0, 2), move.substring(2, 4))
+  })
+  return game
+}
+
+/**
+ * @param {chess.Square[]} board
+ * @param {chess.ValidMove[]} moves
+ * @param {string / null} selection
+ */
+const render = (board, moves, selection = null) => {
+  const horizontal = 'hgfedcba'.split('').reverse()
   const vertical = Array.from({ length: 8 }, (item, idx) => idx + 1).reverse()
+  let validMoves
+  if (selection) {
+    validMoves = moves.find(move => squareToString(move.src) === selection).squares
+  }
 
   /**
    * Nested loops board generation.
@@ -49,7 +68,21 @@ const render = (board, selection) => {
      */
     const square = board
       .find(({ file, rank }) => file === col && rank === row)
-
+    const isSquareTarget = validMoves && validMoves
+      .find(move => squareToString(move) === squareToString(square))
+    let data = 'none'
+    if (
+      !selection &&
+      moves.find(move => squareToString(square) === squareToString(move.src))
+    ) {
+      data = `select_${squareToString(square)}`
+    } if (selection) {
+      if (isSquareTarget) {
+        data = `move_${selection}${squareToString(square)}`
+      } else {
+        data = 'unselect'
+      }
+    }
     /**
      * If it is a piece.
      */
@@ -57,8 +90,8 @@ const render = (board, selection) => {
       const piece = emodji[square.piece.side.name][square.piece.type]
 
       return {
-        text: `${square.move ? 'X' : ''}${piece}`,
-        callback_data: selection ? `move_${selection}${col}${row}` : `select_${col}${row}`,
+        text: `${isSquareTarget ? 'X' : ''}${piece}`,
+        callback_data: data,
       }
     }
 
@@ -66,8 +99,8 @@ const render = (board, selection) => {
      * If it is an empty square.
      */
     return {
-      text: square.move ? '·' : unescape('%u0020'),
-      callback_data: selection ? `move_${selection}${col}${row}` : 'none',
+      text: isSquareTarget ? '·' : unescape('%u0020'),
+      callback_data: data,
     }
   }))
 
@@ -105,8 +138,15 @@ bot.command('seek', () => {
   // }).catch(console.error)
 })
 
-bot.action(/select_(?<selection>[a-h][1-9])/, ctx => {
-  ctx.editMessageReplyMarkup(render(board.squares, ctx.match.groups.selection))
+bot.action(/^select_(?<selection>[a-h][1-9])$/, ctx => {
+  console.log('selected', ctx.match.groups.selection)
+  const { board, validMoves } = getGame(gameMoves).getStatus()
+  ctx.editMessageReplyMarkup(render(board.squares, validMoves, ctx.match.groups.selection))
+  ctx.answerCbQuery()
+})
+bot.action(/^unselect$/, ctx => {
+  const { board, validMoves } = getGame(gameMoves).getStatus()
+  ctx.editMessageReplyMarkup(render(board.squares, validMoves))
   ctx.answerCbQuery()
 })
 bot.action(/^move_(?<move>(?:[a-h][1-9]){2})$/, ctx => {
@@ -125,16 +165,18 @@ const main = async () => {
       const gameStream = await fetch(`https://lichess.org/api/board/game/stream/${gameId}`, { headers })
         .then(response => response.body)
       gameStream.pipe(ndjson.parse()).on('data', gameEvent => {
+        console.log(gameEvent)
         if (gameEvent.type === 'gameFull') {
-          console.log(gameEvent)
-          bot.telegram.editMessageReplyMarkup(msg.chat.id, msg.message_id, null, render(board.squares, null))
+          if (gameEvent.state) {
+            gameMoves = gameEvent.state.moves
+          }
+          const { board, validMoves } = getGame(gameMoves).getStatus()
+          bot.telegram.editMessageReplyMarkup(msg.chat.id, msg.message_id, null, render(board.squares, validMoves))
         }
         if (gameEvent.type === 'gameState') {
-          board = chess.createSimple().getStatus().board
-          gameEvent.moves.split(' ').forEach(move => {
-            board.move(move.substring(0, 2), move.substring(2, 4))
-          })
-          bot.telegram.editMessageReplyMarkup(msg.chat.id, msg.message_id, null, render(board.squares, null))
+          gameMoves = gameEvent.moves
+          const { board, validMoves } = getGame(gameMoves).getStatus()
+          bot.telegram.editMessageReplyMarkup(msg.chat.id, msg.message_id, null, render(board.squares, validMoves))
         }
       })
     }
