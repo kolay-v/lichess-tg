@@ -1,39 +1,48 @@
-const Telegraf = require('telegraf')
+require('dotenv').config()
+const { Telegraf, Markup } = require('telegraf-develop')
 const chess = require('chess')
+const crypto = require('crypto')
 const fetch = require('node-fetch')
 const ndjson = require('ndjson')
-const { Markup } = require('telegraf')
-require('dotenv').config()
+const knex = require('knex')(require('../knexfile'))
+const render = require('./render')
 
-let gameMoves = ''
-let gameId
-
-const emodji = {
-  black: {
-    rook: '♜',
-    knight: '♞',
-    bishop: '♝',
-    queen: '♛',
-    king: '♚',
-    pawn: '♟',
-  },
-  white: {
-    rook: '♖',
-    knight: '♘',
-    bishop: '♗',
-    queen: '♕',
-    king: '♔',
-    pawn: '♙',
-  },
-}
-
-const headers = {
-  Authorization: 'Bearer ' + process.env.LICHESS_TOKEN,
-}
 const bot = new Telegraf(process.env.BOT_TOKEN)
 
-const squareToString = ({ file, rank }) => `${file}${rank}`
+const getGameByMessage = ctx => knex.select('token', 'game_id', 'moves')
+  .from('games').where({
+    message_id: (ctx.message || ctx.callbackQuery.message).message_id,
+    user_id: ctx.userId,
+  }).leftJoin('accounts', 'games.account_id', 'accounts.id')
+  .first()
 
+bot.on(['message', 'callback_query'], async (ctx, next) => {
+  const [user] = await knex('users').insert({
+    tg_id: ctx.from.id,
+    tg_info: JSON.stringify({
+      firstName: ctx.from.first_name,
+      username: ctx.from.username,
+      lastName: ctx.from.last_name,
+      languageCode: ctx.from.language_code,
+    }),
+  }).returning(['id']).onConflict('tg_id').merge()
+  ctx.userId = user.id
+  return next()
+})
+
+const authorized = async (ctx, next) => {
+  const { userId } = ctx
+  const account = await knex.select('username', 'token', 'created_at')
+    .from('accounts').where({ user_id: userId })
+    .orderBy('created_at', 'desc').limit(1).first()
+  if (!account) {
+    return ctx.reply('please authorize first /login')
+  }
+  ctx.auth = account
+  return next()
+}
+
+const isYourTurn = (isWhite, moves) => !(moves.split(' ').filter(Boolean).length % 2) === isWhite
 const getGame = moves => {
   const game = chess.createSimple()
   moves.split(' ').filter(Boolean).forEach(move => {
@@ -42,145 +51,141 @@ const getGame = moves => {
   return game
 }
 
-/**
- * @param {chess.Square[]} board
- * @param {chess.ValidMove[]} moves
- * @param {string / null} selection
- */
-const render = (board, moves, selection = null) => {
-  const horizontal = 'hgfedcba'.split('').reverse()
-  const vertical = Array.from({ length: 8 }, (item, idx) => idx + 1).reverse()
-  let validMoves
-  if (selection) {
-    validMoves = moves.find(move => squareToString(move.src) === selection).squares
+bot.command('login', async ctx => {
+  let { secret } = await knex.select('secret').from('users')
+    .where({ id: ctx.userId })
+  if (!secret) {
+    secret = crypto.randomBytes(16).toString('hex')
+    await knex('users').update({
+      secret,
+      oauth_temp: crypto.randomBytes(32),
+    }).where({ id: ctx.userId })
   }
-
-  /**
-   * Nested loops board generation.
-   *
-   * @type {Array}
-   */
-  let boardMarkup = vertical.map((row) => horizontal.map((col) => {
-    /**
-     * Find a pressed square.
-     *
-     * @type {Object}
-     */
-    const square = board
-      .find(({ file, rank }) => file === col && rank === row)
-    const isSquareTarget = validMoves && validMoves
-      .find(move => squareToString(move) === squareToString(square))
-    let data = 'none'
-    if (
-      !selection &&
-      moves.find(move => squareToString(square) === squareToString(move.src))
-    ) {
-      data = `select_${squareToString(square)}`
-    } if (selection) {
-      if (isSquareTarget) {
-        data = `move_${selection}${squareToString(square)}`
-      } else {
-        data = 'unselect'
-      }
-    }
-    /**
-     * If it is a piece.
-     */
-    if (square && square.piece) {
-      const piece = emodji[square.piece.side.name][square.piece.type]
-
-      return {
-        text: `${isSquareTarget ? 'X' : ''}${piece}`,
-        callback_data: data,
-      }
-    }
-
-    /**
-     * If it is an empty square.
-     */
-    return {
-      text: isSquareTarget ? '·' : unescape('%u0020'),
-      callback_data: data,
-    }
-  }))
-
-  /**
-   * Manage the rotation of a board.
-  //  */
-  // if (!isWhite) {
-  //   boardMarkup = boardMarkup.map((row) => row.reverse()).reverse()
-  // }
-
-  /**
-   * Attach additional buttons.
-   */
-  // if (actions) {
-  //   boardMarkup.push(actions)
-  // }
-
-  /**
-   * Returns an Extra object.
-   */
-  return Markup.inlineKeyboard(boardMarkup)
-}
-
-bot.start(ctx => ctx.reply('Send me challenge id or /seek command (TODO)')) // TODO
-bot.hears(/^[a-zA-Z\d]{4,}$/, ctx => fetch(`https://lichess.org/api/challenge/${ctx.message.text}/accept`, { headers, method: 'POST' }).catch(console.error))
-
-bot.command('seek', () => {
-  // fetch('https://lichess.org/api/board/seek', {
-  //   headers,
-  //   method: 'POST',
-  //   body: new URLSearchParams({
-  //     time: '30',
-  //     increment: '20',
-  //   }),
-  // }).catch(console.error)
+  ctx.reply('Click button bellow.', Markup.inlineKeyboard([
+    Markup.urlButton('Login', `${process.env.URL}/login/${secret}`),
+  ]).extra())
+})
+bot.start(ctx => ctx.reply('Hello. You should /login and then send me challenge id or /seek command'))
+bot.hears(/^[a-zA-Z\d]{4,}$/, authorized, ctx => {
+  fetch(`https://lichess.org/api/challenge/${ctx.message.text}/accept`, {
+    headers: { Authorization: `Bearer ${ctx.auth.token}` }, method: 'POST',
+  }).catch(console.error)
 })
 
-bot.action(/^select_(?<selection>[a-h][1-9])$/, ctx => {
-  console.log('selected', ctx.match.groups.selection)
-  const { board, validMoves } = getGame(gameMoves).getStatus()
+bot.command('seek', authorized, ctx => {
+  fetch('https://lichess.org/api/board/seek', {
+    headers: { Authorization: `Bearer ${ctx.auth.token}` },
+    method: 'POST',
+    body: new URLSearchParams({
+      time: '10',
+      increment: '5',
+      rated: 'false',
+    }),
+  }).catch(console.error)
+})
+
+bot.action(/^select_(?<selection>[a-h][1-9])$/, async ctx => {
+  const { moves } = await getGameByMessage(ctx)
+  const { board, validMoves } = getGame(moves).getStatus()
   ctx.editMessageReplyMarkup(render(board.squares, validMoves, ctx.match.groups.selection))
   ctx.answerCbQuery()
 })
-bot.action(/^unselect$/, ctx => {
-  const { board, validMoves } = getGame(gameMoves).getStatus()
+bot.action(/^unselect$/, async ctx => {
+  const { moves } = await getGameByMessage(ctx)
+  const { board, validMoves } = getGame(moves).getStatus()
   ctx.editMessageReplyMarkup(render(board.squares, validMoves))
   ctx.answerCbQuery()
 })
-bot.action(/^move_(?<move>(?:[a-h][1-9]){2})$/, ctx => {
-  fetch(`https://lichess.org/api/board/game/${gameId}/move/${ctx.match.groups.move}`, { headers, method: 'POST' }).catch(console.error)
+bot.action(/^move_(?<move>(?:[a-h][1-9]){2})$/, async ctx => {
+  const { token, game_id } = await getGameByMessage(ctx)
+  fetch(`https://lichess.org/api/board/game/${game_id}/move/${ctx.match.groups.move}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  }).catch(console.error)
   ctx.answerCbQuery()
 })
 
-const main = async () => {
-  await bot.launch()
-  const stream = await fetch('https://lichess.org/api/stream/event', { headers })
-    .then(response => response.body)
+bot.catch(error => console.error(error))
+
+const stream = async (token, id, tgId, accountId) => {
+  const stream = await fetch('https://lichess.org/api/stream/event', {
+    headers: { Authorization: `Bearer ${token}` },
+  }).then(response => response.body)
   stream.pipe(ndjson.parse()).on('data', async event => {
     if (event.type === 'gameStart') {
-      gameId = event.game.id
-      const msg = await bot.telegram.sendMessage(process.env.BOT_CHAT, `started game with id ${gameId}`)
-      const gameStream = await fetch(`https://lichess.org/api/board/game/stream/${gameId}`, { headers })
-        .then(response => response.body)
-      gameStream.pipe(ndjson.parse()).on('data', gameEvent => {
+      const { id: gameId } = event.game
+      let game = await knex.select('id', 'message_id', 'moves').from('games')
+        .where({ game_id: gameId, account_id: accountId }).first()
+      if (!game) {
+        const { message_id } = await bot.telegram.sendMessage(tgId, `started game with id ${gameId}`)
+        const [gameRaw] = await knex('games').insert({
+          game_id: gameId,
+          account_id: accountId,
+          message_id,
+        }).returning('id')
+        game = { id: gameRaw.id, moves: '', message_id }
+      }
+      const gameStream = await fetch(`https://lichess.org/api/board/game/stream/${gameId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(response => response.body)
+      let isWhite = true
+      gameStream.pipe(ndjson.parse()).on('data', async gameEvent => {
         console.log(gameEvent)
         if (gameEvent.type === 'gameFull') {
+          isWhite = gameEvent.white.id === id
+          let { moves } = game
           if (gameEvent.state) {
-            gameMoves = gameEvent.state.moves
+            moves = gameEvent.state.moves
+            if (game.moves !== moves) {
+              game.moves = moves
+              await knex('games').update({ moves }).where({ id: game.id })
+            }
           }
-          const { board, validMoves } = getGame(gameMoves).getStatus()
-          bot.telegram.editMessageReplyMarkup(msg.chat.id, msg.message_id, null, render(board.squares, validMoves))
+          const { board, validMoves } = getGame(moves).getStatus()
+          bot.telegram.editMessageText(
+            tgId,
+            game.message_id,
+            null,
+            `White ${gameEvent.white.name} (${gameEvent.white.rating})
+
+Black ${gameEvent.black.name} (${gameEvent.black.rating})`,
+            render(board.squares, isYourTurn(isWhite, moves) ? validMoves : []).extra()
+          )
         }
         if (gameEvent.type === 'gameState') {
-          gameMoves = gameEvent.moves
-          const { board, validMoves } = getGame(gameMoves).getStatus()
-          bot.telegram.editMessageReplyMarkup(msg.chat.id, msg.message_id, null, render(board.squares, validMoves))
+          const { moves } = gameEvent
+          if (moves === game.moves) {
+            return
+          }
+          game.moves = moves
+          await knex('games').update({ moves }).where({ id: game.id })
+          const { board, validMoves } = getGame(moves).getStatus()
+          bot.telegram.editMessageReplyMarkup(
+            tgId,
+            game.message_id,
+            null,
+            render(board.squares, isYourTurn(isWhite, moves) ? validMoves : [])
+          )
+        }
+        if (isYourTurn(isWhite, game.moves)) {
+          bot.telegram.sendMessage(tgId, 'Your turn', { reply_to_message_id: game.message_id })
         }
       })
     }
   })
+}
+
+const main = async () => {
+  await bot.telegram.getUpdates(2, 100, -1)
+  await bot.launch()
+  const accountsQuery = knex.select('id').from('accounts')
+    .where({ user_id: knex.raw('users.id') }).limit(1)
+    .orderBy('created_at', 'desc')
+  const users = await knex.select('users.tg_id', 'token', 'lichess_id', 'accounts.id')
+    .from('users')
+    .joinRaw('join accounts on accounts.id = ?', [accountsQuery])
+  users.forEach(({ tg_id, token, lichess_id, id }) =>
+    stream(token, lichess_id, tg_id, id))
 }
 
 main()

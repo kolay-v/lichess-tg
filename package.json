@@ -1,31 +1,32 @@
 {
-  "name": "chessbot",
+  "name": "lichess-tg",
   "version": "1.0.0",
   "description": "",
-  "main": "src/index.js",
+  "main": "src/main.js",
   "scripts": {
     "lint": "eslint --ext .js src",
     "lint:fix": "eslint --fix --ext .js src",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon -w src src/index.js"
+    "dev": "nodemon -w src src/main.js"
   },
-  "author": "Denis Efremov <efremov.a.denis@gmail.com>",
+  "author": "kolay",
   "repository": {
     "type": "git",
-    "url": "git@github.com:Piterden/chessbot.git"
+    "url": "git@github.com:kolay-v/lichess-tg.git"
   },
   "license": "MIT",
   "dependencies": {
     "chess": "^0.4.9",
     "dotenv": "^7.0.0",
-    "knex": "^0.20.13",
-    "module-alias": "^2.2.2",
-    "mysql2": "^2.2.5",
+    "express": "^4.17.1",
+    "knex": "^0.95.15",
     "ndjson": "^2.0.0",
     "node-fetch": "^2.6.1",
-    "telegraf": "^3.37.0"
+    "pg": "^8.7.1",
+    "telegraf-develop": "^5.1.3"
   },
   "devDependencies": {
+    "@types/express": "^4.17.13",
     "@types/node": "^16.4.13",
     "@types/node-fetch": "^2.5.12",
     "babel-eslint": "^10.1.0",
@@ -37,9 +38,6 @@
     "eslint-plugin-standard": "^4.1.0",
     "husky": "^3.1.0",
     "nodemon": "^2.0.7"
-  },
-  "_moduleAliases": {
-    "@": "./src"
   },
   "husky": {
     "hooks": {
