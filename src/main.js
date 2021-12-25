@@ -8,22 +8,13 @@ const render = require('./render')
 const { isYourTurn } = require('./utils')
 const {
   getAccountByUserId,
-  getUserGameByMessage,
+  getUserGameByMessage, createOrUpdateUser,
 } = require('./database')
 
 const bot = new Telegraf(process.env.BOT_TOKEN)
 
 bot.on(['message', 'callback_query'], async (ctx, next) => {
-  const [user] = await knex('users').insert({
-    tg_id: ctx.from.id,
-    tg_info: JSON.stringify({
-      firstName: ctx.from.first_name,
-      username: ctx.from.username,
-      lastName: ctx.from.last_name,
-      languageCode: ctx.from.language_code,
-    }),
-  }).returning(['id']).onConflict('tg_id').merge()
-  ctx.userId = user.id
+  await createOrUpdateUser(ctx)
   return next()
 })
 
@@ -46,13 +37,13 @@ const getGame = moves => {
 
 bot.command('login', async ctx => {
   let { secret } = await knex.select('secret').from('users')
-    .where({ id: ctx.userId })
+    .where({ id: ctx.from.id })
   if (!secret) {
     secret = crypto.randomBytes(16).toString('hex')
     await knex('users').update({
       secret,
       oauth_temp: crypto.randomBytes(32),
-    }).where({ id: ctx.userId })
+    }).where({ id: ctx.from.id })
   }
   ctx.reply('Click button bellow.', Markup.inlineKeyboard([
     Markup.urlButton('Login', `${process.env.URL}/login/${secret}`),
@@ -78,24 +69,34 @@ bot.command('seek', authorized, ctx => {
 })
 
 bot.action(/^select_(?<selection>[a-h][1-9])$/, async ctx => {
-  const { moves } = await getUserGameByMessage(ctx.from.id, ctx.message.message_id)
-  const { board, validMoves } = getGame(moves).getStatus()
-  ctx.editMessageReplyMarkup(render(board.squares, validMoves, ctx.match.groups.selection))
-  ctx.answerCbQuery()
+  const game = await getUserGameByMessage(ctx.from.id, ctx.message.message_id)
+  if (game === null) {
+    return ctx.answerCbQuery('Game not found.')
+  }
+  const { board, validMoves } = getGame(game.moves).getStatus()
+  await ctx.editMessageReplyMarkup(render(board.squares, validMoves, ctx.match.groups.selection))
+  await ctx.answerCbQuery()
 })
 bot.action(/^unselect$/, async ctx => {
-  const { moves } = await getUserGameByMessage(ctx.from.id, ctx.message.message_id)
-  const { board, validMoves } = getGame(moves).getStatus()
-  ctx.editMessageReplyMarkup(render(board.squares, validMoves))
-  ctx.answerCbQuery()
+  const game = await getUserGameByMessage(ctx.from.id, ctx.message.message_id)
+  if (game === null) {
+    return ctx.answerCbQuery('Game not found.')
+  }
+  const { board, validMoves } = getGame(game.moves).getStatus()
+  await ctx.editMessageReplyMarkup(render(board.squares, validMoves))
+  await ctx.answerCbQuery()
 })
 bot.action(/^move_(?<move>(?:[a-h][1-9]){2})$/, async ctx => {
-  const { token, game_id } = await getUserGameByMessage(ctx.from.id, ctx.message.message_id)
-  fetch(`https://lichess.org/api/board/game/${game_id}/move/${ctx.match.groups.move}`, {
+  const game = await getUserGameByMessage(ctx.from.id, ctx.message.message_id)
+  if (game === null) {
+    return ctx.answerCbQuery('Game not found.')
+  }
+  const { token, game_id: gameId } = game
+  fetch(`https://lichess.org/api/board/game/${gameId}/move/${ctx.match.groups.move}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
   }).catch(console.error)
-  ctx.answerCbQuery()
+  await ctx.answerCbQuery()
 })
 
 bot.catch(error => console.error(error))
