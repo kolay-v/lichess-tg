@@ -1,13 +1,21 @@
 require('dotenv').config()
 const express = require('express')
-const crypto = require('crypto')
-const fetch = require('node-fetch')
-const knex = require('knex')(require('../knexfile'))
+
+const {
+  getUserBySecret,
+} = require('./database')
+
+const {
+  sha256,
+} = require('./utils')
+
+const {
+  getLichessEmail,
+  getLichessToken,
+  getLichessUser,
+} = require('./lichess-api')
 
 const { URL, CLIENT_ID } = process.env
-
-
-
 const scope = ['email:read', 'challenge:write', 'board:play'].join(' ')
 
 export const redirectUrl = `${URL}/chess`
@@ -15,13 +23,13 @@ export const redirectUrl = `${URL}/chess`
 const app = express()
 
 app.get('/login/:secret', async (req, res) => {
-  const { secret } = req.params
-  const user = await knex.select('oauth_temp').from('users')
-    .where({ secret }).first()
+  const user = await getUserBySecret(req.params.secret)
+
   if (!user) {
     res.send('Invalid link.')
     return
   }
+
   res.redirect('https://lichess.org/oauth?' + new URLSearchParams({
     response_type: 'code',
     client_id: CLIENT_ID,
@@ -30,7 +38,7 @@ app.get('/login/:secret', async (req, res) => {
     code_challenge_method: 'S256',
     code_challenge: sha256(user.oauth_temp.toString('base64url'))
       .toString('base64url'),
-    state: secret,
+    state: req.params.secret,
   }))
 })
 

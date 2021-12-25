@@ -4,8 +4,12 @@ const chess = require('chess')
 const crypto = require('crypto')
 const fetch = require('node-fetch')
 const ndjson = require('ndjson')
-const knex = require('knex')(require('../knexfile'))
 const render = require('./render')
+const { isYourTurn } = require('./utils')
+const {
+  getAccountByUserId,
+  getUserGameByMessage,
+} = require('./database')
 
 const bot = new Telegraf(process.env.BOT_TOKEN)
 
@@ -32,7 +36,6 @@ const authorized = async (ctx, next) => {
   return next()
 }
 
-const isYourTurn = (isWhite, moves) => !(moves.split(' ').filter(Boolean).length % 2) === isWhite
 const getGame = moves => {
   const game = chess.createSimple()
   moves.split(' ').filter(Boolean).forEach(move => {
@@ -75,19 +78,19 @@ bot.command('seek', authorized, ctx => {
 })
 
 bot.action(/^select_(?<selection>[a-h][1-9])$/, async ctx => {
-  const { moves } = await getGameByMessage(ctx)
+  const { moves } = await getUserGameByMessage(ctx.from.id, ctx.message.message_id)
   const { board, validMoves } = getGame(moves).getStatus()
   ctx.editMessageReplyMarkup(render(board.squares, validMoves, ctx.match.groups.selection))
   ctx.answerCbQuery()
 })
 bot.action(/^unselect$/, async ctx => {
-  const { moves } = await getGameByMessage(ctx)
+  const { moves } = await getUserGameByMessage(ctx.from.id, ctx.message.message_id)
   const { board, validMoves } = getGame(moves).getStatus()
   ctx.editMessageReplyMarkup(render(board.squares, validMoves))
   ctx.answerCbQuery()
 })
 bot.action(/^move_(?<move>(?:[a-h][1-9]){2})$/, async ctx => {
-  const { token, game_id } = await getGameByMessage(ctx)
+  const { token, game_id } = await getUserGameByMessage(ctx.from.id, ctx.message.message_id)
   fetch(`https://lichess.org/api/board/game/${game_id}/move/${ctx.match.groups.move}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
@@ -139,7 +142,7 @@ const stream = async (token, id, tgId, accountId) => {
             `White ${gameEvent.white.name} (${gameEvent.white.rating})
 
 Black ${gameEvent.black.name} (${gameEvent.black.rating})`,
-            render(board.squares, isYourTurn(isWhite, moves) ? validMoves : []).extra()
+            render(board.squares, isYourTurn(isWhite, moves) ? validMoves : []).extra(),
           )
         }
         if (gameEvent.type === 'gameState') {
@@ -154,7 +157,7 @@ Black ${gameEvent.black.name} (${gameEvent.black.rating})`,
             tgId,
             game.message_id,
             null,
-            render(board.squares, isYourTurn(isWhite, moves) ? validMoves : [])
+            render(board.squares, isYourTurn(isWhite, moves) ? validMoves : []),
           )
         }
         if (isYourTurn(isWhite, game.moves)) {

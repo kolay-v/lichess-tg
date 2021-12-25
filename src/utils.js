@@ -20,3 +20,13 @@ export const fetcher = (...rest) => fetch(...rest)
 export const sha256 = (buffer) => createHash('sha256')
   .update(buffer)
   .digest()
+
+/**
+ * Determines if your turn.
+ *
+ * @param  {boolean} isWhite Indicates if white
+ * @param  {<type>}  moves The moves
+ * @return {boolean} `true` if your turn, `false` otherwise.
+ */
+const isYourTurn = (isWhite, moves) =>
+  !(moves.split(' ').filter(Boolean).length % 2) === isWhite

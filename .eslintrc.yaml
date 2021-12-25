@@ -12,6 +12,7 @@ parserOptions:
     modules: false
 rules:
   max-len: off
+  camelcase: off
   prefer-rest-params: off
   prefer-destructuring: off
   unicorn/prefer-spread: off
@@ -50,5 +51,3 @@ rules:
   semi:
     - error
     - never
-  camelcase:
-    - warn

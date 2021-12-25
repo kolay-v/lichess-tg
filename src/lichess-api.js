@@ -1,5 +1,5 @@
-import { fetcher } from './utils'
-import { redirectUrl } from './lichess-api'
+const { fetcher } = require('./utils')
+const { redirectUrl } = require('./lichess-api')
 
 const { CLIENT_ID } = process.env
 
