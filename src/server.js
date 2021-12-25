@@ -6,37 +6,13 @@ const knex = require('knex')(require('../knexfile'))
 
 const { URL, CLIENT_ID } = process.env
 
-const sha256 = buffer => crypto.createHash('sha256').update(buffer).digest()
+
 
 const scope = ['email:read', 'challenge:write', 'board:play'].join(' ')
 
-const redirectUrl = `${URL}/chess`
+export const redirectUrl = `${URL}/chess`
 
 const app = express()
-
-const getLichessToken = (authCode, verifier) => fetch('https://lichess.org/api/token', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    grant_type: 'authorization_code',
-    redirect_uri: redirectUrl,
-    client_id: CLIENT_ID,
-    code: authCode,
-    code_verifier: verifier,
-  }),
-}).then(res => res.json())
-
-const getLichessUser = accessToken => fetch('https://lichess.org/api/account', {
-  headers: {
-    'Authorization': `Bearer ${accessToken}`,
-  },
-}).then(res => res.json())
-
-const getLichessEmail = accessToken => fetch('https://lichess.org/api/account/email', {
-  headers: {
-    'Authorization': `Bearer ${accessToken}`,
-  },
-}).then(res => res.json())
 
 app.get('/login/:secret', async (req, res) => {
   const { secret } = req.params

@@ -9,13 +9,6 @@ const render = require('./render')
 
 const bot = new Telegraf(process.env.BOT_TOKEN)
 
-const getGameByMessage = ctx => knex.select('token', 'game_id', 'moves')
-  .from('games').where({
-    message_id: (ctx.message || ctx.callbackQuery.message).message_id,
-    user_id: ctx.userId,
-  }).leftJoin('accounts', 'games.account_id', 'accounts.id')
-  .first()
-
 bot.on(['message', 'callback_query'], async (ctx, next) => {
   const [user] = await knex('users').insert({
     tg_id: ctx.from.id,
@@ -31,14 +24,11 @@ bot.on(['message', 'callback_query'], async (ctx, next) => {
 })
 
 const authorized = async (ctx, next) => {
-  const { userId } = ctx
-  const account = await knex.select('username', 'token', 'created_at')
-    .from('accounts').where({ user_id: userId })
-    .orderBy('created_at', 'desc').limit(1).first()
+  const account = await getAccountByUserId(ctx.from.id)
   if (!account) {
-    return ctx.reply('please authorize first /login')
+    return ctx.reply('First you need to /login')
   }
-  ctx.auth = account
+  ctx.account = account
   return next()
 }
 
@@ -68,13 +58,13 @@ bot.command('login', async ctx => {
 bot.start(ctx => ctx.reply('Hello. You should /login and then send me challenge id or /seek command'))
 bot.hears(/^[a-zA-Z\d]{4,}$/, authorized, ctx => {
   fetch(`https://lichess.org/api/challenge/${ctx.message.text}/accept`, {
-    headers: { Authorization: `Bearer ${ctx.auth.token}` }, method: 'POST',
-  }).catch(console.error)
+    headers: { Authorization: `Bearer ${ctx.account.token}` }, method: 'POST',
+  })
 })
 
 bot.command('seek', authorized, ctx => {
   fetch('https://lichess.org/api/board/seek', {
-    headers: { Authorization: `Bearer ${ctx.auth.token}` },
+    headers: { Authorization: `Bearer ${ctx.account.token}` },
     method: 'POST',
     body: new URLSearchParams({
       time: '10',
