@@ -8,7 +8,8 @@ const render = require('./render')
 const { isYourTurn } = require('./utils')
 const {
   getAccountByUserId,
-  getUserGameByMessage, createOrUpdateUser,
+  getUserGameByMessage,
+  createOrUpdateUser,
 } = require('./database')
 
 const bot = new Telegraf(process.env.BOT_TOKEN)

@@ -8,9 +8,9 @@ const { CLIENT_ID } = process.env
  *
  * @param  {string} authCode The auth code from lichess
  * @param  {string} verifier base64url encoded verifier generated before oAuth
- * @return {@todo:<type>} The lichess token.
+ * @return {Promise<string>} The lichess token.
  */
-export const getLichessToken = (authCode, verifier) => fetcher('https://lichess.org/api/token', {
+module.exports.getLichessToken = (authCode, verifier) => fetcher('https://lichess.org/api/token', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
@@ -20,15 +20,15 @@ export const getLichessToken = (authCode, verifier) => fetcher('https://lichess.
     code: authCode,
     code_verifier: verifier,
   }),
-})
+}).then(({ access_token }) => access_token)
 
 /**
  * Gets the lichess user.
  *
  * @param  {string} token lichess auth token
- * @return {@todo:<type>} The lichess user.
+ * @return {Promise<Object>} The lichess user.
  */
-export const getLichessUser = (token) => fetcher('https://lichess.org/api/account', {
+module.exports.getLichessUser = (token) => fetcher('https://lichess.org/api/account', {
   headers: {
     'Authorization': `Bearer ${token}`,
   },
@@ -40,7 +40,7 @@ export const getLichessUser = (token) => fetcher('https://lichess.org/api/accoun
  * @param  {string} token lichess auth token
  * @return {Promise<{ email: string }>} The lichess email.
  */
-export const getLichessEmail = (token) => fetcher('https://lichess.org/api/account/email', {
+module.exports.getLichessEmail = (token) => fetcher('https://lichess.org/api/account/email', {
   headers: {
     'Authorization': `Bearer ${token}`,
   },

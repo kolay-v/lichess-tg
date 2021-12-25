@@ -5,7 +5,7 @@ const fetch = require('node-fetch')
  * Wrapper around fetch.
  *
  * @param {any} rest The rest of arguments
- * @return {Promise<Response>} Async response
+ * @return {Promise<any>} Async response
  */
 module.exports.fetcher = (...rest) => fetch(...rest)
   .then(res => res.json())
