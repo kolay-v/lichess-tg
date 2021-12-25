@@ -1,5 +1,5 @@
 const { fetcher } = require('./utils')
-const { redirectUrl } = require('./server')
+const { redirectUrl } = require('./vars')
 
 const { CLIENT_ID } = process.env
 

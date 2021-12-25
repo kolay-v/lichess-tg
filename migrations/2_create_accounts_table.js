@@ -8,7 +8,6 @@ exports.up = async (knex) =>
       table.string('username').nullable()
       table.string('title').nullable()
       table.string('token').notNullable()
-      table.string('ip').nullable()
       table.string('email').nullable()
       table.timestamp('created_at').defaultTo(knex.fn.now()).notNullable()
 

@@ -2,8 +2,8 @@ require('dotenv').config()
 const express = require('express')
 
 const {
-  getUserBySecret,
   createAccount,
+  getUserBySecret,
   updateOAuthTemp,
 } = require('./database')
 
@@ -16,9 +16,9 @@ const {
 } = require('./vars')
 
 const {
+  getLichessUser,
   getLichessEmail,
   getLichessToken,
-  getLichessUser,
 } = require('./api')
 
 const { CLIENT_ID } = process.env

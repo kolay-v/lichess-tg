@@ -4,18 +4,19 @@ const chess = require('chess')
 const crypto = require('crypto')
 const fetch = require('node-fetch')
 const ndjson = require('ndjson')
+
 const render = require('./render')
 const { isYourTurn } = require('./utils')
 const {
+  createOrUpdateUser,
   getAccountByUserId,
   getUserGameByMessage,
-  createOrUpdateUser,
 } = require('./database')
 
 const bot = new Telegraf(process.env.BOT_TOKEN)
 
 bot.on(['message', 'callback_query'], async (ctx, next) => {
-  await createOrUpdateUser(ctx)
+  await createOrUpdateUser(ctx.from).catch(console.error)
   return next()
 })
 
