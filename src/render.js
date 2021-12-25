@@ -29,7 +29,7 @@ const emodji = {
 const render = (board, validMoves, selection = null) => {
   const horizontal = 'abcdefgh'.split('')
   const vertical = Array.from({ length: 8 }, (item, idx) => idx + 1).reverse()
-  let pieceMoves
+  let pieceMoves = []
   if (selection) {
     pieceMoves = validMoves.find(move => squareToString(move.src) === selection).squares
   }
@@ -47,8 +47,8 @@ const render = (board, validMoves, selection = null) => {
      */
     const square = board
       .find(({ file, rank }) => file === col && rank === row)
-    const isSquareTarget = pieceMoves && pieceMoves
-      .find(move => squareToString(move) === squareToString(square))
+    const isSquareTarget = pieceMoves.find(move =>
+      squareToString(move) === squareToString(square))
     let data = 'none'
     if (
       !selection &&
