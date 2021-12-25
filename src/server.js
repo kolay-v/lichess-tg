@@ -3,7 +3,7 @@ const express = require('express')
 const crypto = require('crypto')
 
 const {
-  getUserBySecret,
+  getUsersOAuthBySecret,
 } = require('./database')
 
 const {
@@ -24,7 +24,7 @@ export const redirectUrl = `${URL}/chess`
 const app = express()
 
 app.get('/login/:secret', async (req, res) => {
-  const user = await getUserBySecret(req.params.secret)
+  const user = await getUsersOAuthBySecret(req.params.secret)
 
   if (!user) {
     res.send('Invalid link.')
