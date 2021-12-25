@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'lichess-tg-bot',
-      script: 'src/ище.js',
+      script: 'src/bot.js',
       watch: false,
       autorestart: true,
     },
