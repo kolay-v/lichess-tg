@@ -1,5 +1,5 @@
 const { fetcher } = require('./utils')
-const { redirectUrl } = require('./lichess-api')
+const { redirectUrl } = require('./server')
 
 const { CLIENT_ID } = process.env
 

@@ -12,15 +12,17 @@ const {
 } = require('./utils')
 
 const {
+  redirectUrl,
+} = require('./vars')
+
+const {
   getLichessEmail,
   getLichessToken,
   getLichessUser,
-} = require('./lichess-api')
+} = require('./api')
 
-const { URL, CLIENT_ID } = process.env
+const { CLIENT_ID } = process.env
 const scope = ['email:read', 'challenge:write', 'board:play'].join(' ')
-
-const redirectUrl = `${URL}/callback`
 
 const app = express()
 
