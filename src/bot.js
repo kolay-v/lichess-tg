@@ -1,16 +1,16 @@
 require('dotenv').config()
 const { Telegraf, Markup } = require('telegraf-develop')
-const chess = require('chess')
-const crypto = require('crypto')
 const fetch = require('node-fetch')
 const ndjson = require('ndjson')
 
 const render = require('./render')
-const { isYourTurn } = require('./utils')
+const { isYourTurn, createGame } = require('./utils')
 const {
   createOrUpdateUser,
   getAccountByUserId,
   getUserGameByMessage,
+  getSecretById,
+  regenerateSecret,
 } = require('./database')
 
 const bot = new Telegraf(process.env.BOT_TOKEN)
@@ -29,23 +29,10 @@ const authorized = async (ctx, next) => {
   return next()
 }
 
-const getGame = moves => {
-  const game = chess.createSimple()
-  moves.split(' ').filter(Boolean).forEach(move => {
-    game.move(move.substring(0, 2), move.substring(2, 4))
-  })
-  return game
-}
-
 bot.command('login', async ctx => {
-  let { secret } = await knex.select('secret').from('users')
-    .where({ id: ctx.from.id })
+  let secret = (await getSecretById(ctx.from.id))?.secret
   if (!secret) {
-    secret = crypto.randomBytes(16).toString('hex')
-    await knex('users').update({
-      secret,
-      oauth_temp: crypto.randomBytes(32),
-    }).where({ id: ctx.from.id })
+    secret = await regenerateSecret(ctx.from.id)
   }
   ctx.reply('Click button bellow.', Markup.inlineKeyboard([
     Markup.urlButton('Login', `${process.env.URL}/login/${secret}`),
@@ -75,7 +62,7 @@ bot.action(/^select_(?<selection>[a-h][1-9])$/, async ctx => {
   if (game === null) {
     return ctx.answerCbQuery('Game not found.')
   }
-  const { board, validMoves } = getGame(game.moves).getStatus()
+  const { board, validMoves } = createGame(game.moves).getStatus()
   await ctx.editMessageReplyMarkup(render(board.squares, validMoves, ctx.match.groups.selection))
   await ctx.answerCbQuery()
 })
@@ -84,7 +71,7 @@ bot.action(/^unselect$/, async ctx => {
   if (game === null) {
     return ctx.answerCbQuery('Game not found.')
   }
-  const { board, validMoves } = getGame(game.moves).getStatus()
+  const { board, validMoves } = createGame(game.moves).getStatus()
   await ctx.editMessageReplyMarkup(render(board.squares, validMoves))
   await ctx.answerCbQuery()
 })
@@ -137,7 +124,7 @@ const stream = async (token, id, tgId, accountId) => {
               await knex('games').update({ moves }).where({ id: game.id })
             }
           }
-          const { board, validMoves } = getGame(moves).getStatus()
+          const { board, validMoves } = createGame(moves).getStatus()
           bot.telegram.editMessageText(
             tgId,
             game.message_id,
@@ -155,7 +142,7 @@ Black ${gameEvent.black.name} (${gameEvent.black.rating})`,
           }
           game.moves = moves
           await knex('games').update({ moves }).where({ id: game.id })
-          const { board, validMoves } = getGame(moves).getStatus()
+          const { board, validMoves } = createGame(moves).getStatus()
           bot.telegram.editMessageReplyMarkup(
             tgId,
             game.message_id,

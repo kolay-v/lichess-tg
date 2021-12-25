@@ -1,4 +1,5 @@
 const { randomBytes } = require('crypto')
+const crypto = require('crypto')
 const knex = require('knex')(require('../knexfile'))
 
 /**
@@ -70,3 +71,25 @@ module.exports.createAccount = (userId, lichessToken, lichessUser) => knex('acco
 module.exports.updateCodeVerifier = (id) => knex('users')
   .update({ code_verifier: randomBytes(32) })
   .where({ id })
+
+/**
+ * returns secret by user's id
+ * @param {number} id user id
+ * @return {Promise<{ secret: string } | null>} secret if found
+ */
+module.exports.getSecretById = (id) => knex.select('secret')
+  .from('users').where({ id })
+
+/**
+ * regenerates secret by user's id
+ * @param {number} id user id
+ * @return {Promise<string>} secret
+ */
+module.exports.regenerateSecret = async (id) => {
+  const secret = crypto.randomBytes(16).toString('hex')
+  await knex('users').update({
+    secret,
+    oauth_temp: crypto.randomBytes(32),
+  }).where({ id })
+  return secret
+}
