@@ -3,7 +3,7 @@ exports.up = async (knex) =>
     ? null
     : knex.schema.createTable('accounts', (table) => {
       table.increments('id')
-      table.bigInteger('user_id').notNullable().unique()
+      table.bigInteger('user_id').notNullable()
       table.string('lichess_id').notNullable()
       table.string('username').nullable()
       table.string('title').nullable()

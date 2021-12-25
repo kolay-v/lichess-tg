@@ -14,8 +14,8 @@ export const fetcher = (...rest) => fetch(...rest)
 /**
  * Make a hash function.
  *
- * @param  {<type>} buffer The buffer
- * @return {<type>} { description_of_the_return_value }
+ * @param  {Buffer} buffer The buffer
+ * @return {Buffer}
  */
 export const sha256 = (buffer) => createHash('sha256')
   .update(buffer)
@@ -25,8 +25,8 @@ export const sha256 = (buffer) => createHash('sha256')
  * Determines if your turn.
  *
  * @param  {boolean} isWhite Indicates if white
- * @param  {<type>}  moves The moves
+ * @param  {string}  moves The moves
  * @return {boolean} `true` if your turn, `false` otherwise.
  */
-const isYourTurn = (isWhite, moves) =>
+export const isYourTurn = (isWhite, moves) =>
   !(moves.split(' ').filter(Boolean).length % 2) === isWhite
