@@ -18,10 +18,10 @@ module.exports.getUserGameByMessage = (userId, messageId) => knex('games')
  * Gets the user by secret.
  *
  * @param {string} secret The secret
- * @return {Promise<{ id: number, oauth_temp: Buffer } | null>} The user by secret.
+ * @return {Promise<{ id: number, code_verifier: Buffer } | null>} The user by secret.
  */
 module.exports.getUserBySecret = (secret) => knex('users')
-  .select('id', 'oauth_temp')
+  .select('id', 'code_verifier')
   .where({ secret })
   .first()
 
@@ -49,15 +49,13 @@ module.exports.createOrUpdateUser = ({ id, first_name, username, last_name, lang
  *
  * @param {number} userId The user id
  * @param {string} lichessToken Token from lichess
- * @param {string} email Email of the user
  * @param {Object} lichessUser Lichess user's data
  * @return {Promise<void>}
  */
-module.exports.createAccount = (userId, lichessToken, email, lichessUser) => knex('accounts')
+module.exports.createAccount = (userId, lichessToken, lichessUser) => knex('accounts')
   .insert({
     user_id: userId,
     token: lichessToken,
-    email,
     lichess_id: lichessUser.id,
     username: lichessUser.username,
     title: lichessUser.title,
@@ -66,9 +64,9 @@ module.exports.createAccount = (userId, lichessToken, email, lichessUser) => kne
 /**
  * Updates users temp oauth token
  *
- * @param {id} userId The user identifier
- * @return {<type>} { description_of_the_return_value }
+ * @param {number} id The user identifier
+ * @return {Promise<void>}
  */
-module.exports.updateOAuthTemp = (id) => knex('users')
-  .update({ oauth_temp: randomBytes(32) })
+module.exports.updateCodeVerifier = (id) => knex('users')
+  .update({ code_verifier: randomBytes(32) })
   .where({ id })

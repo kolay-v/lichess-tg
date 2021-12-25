@@ -52,7 +52,7 @@ const render = (board, validMoves, selection = null) => {
     let data = 'none'
     if (
       !selection &&
-      validMoves.find(move => squareToString(square) === squareToString(move.src))
+      validMoves.find((move) => squareToString(square) === squareToString(move.src))
     ) {
       data = `select_${squareToString(square)}`
     } if (selection) {

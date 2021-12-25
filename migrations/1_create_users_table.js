@@ -5,7 +5,7 @@ exports.up = async (knex) =>
       table.bigInteger('id').notNullable().primary()
       table.jsonb('tg_info').notNullable()
       table.string('secret', 32).nullable()
-      table.binary('oauth_temp', 32).nullable()
+      table.binary('code_verifier', 32).nullable()
       table.timestamp('created_at').defaultTo(knex.fn.now()).notNullable()
     })
 

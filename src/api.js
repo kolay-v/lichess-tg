@@ -33,15 +33,3 @@ module.exports.getLichessUser = (token) => fetcher('https://lichess.org/api/acco
     'Authorization': `Bearer ${token}`,
   },
 })
-
-/**
- * Gets the lichess email.
- *
- * @param  {string} token lichess auth token
- * @return {Promise<{ email: string }>} The lichess email.
- */
-module.exports.getLichessEmail = (token) => fetcher('https://lichess.org/api/account/email', {
-  headers: {
-    'Authorization': `Bearer ${token}`,
-  },
-})

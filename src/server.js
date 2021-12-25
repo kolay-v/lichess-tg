@@ -4,25 +4,18 @@ const express = require('express')
 const {
   createAccount,
   getUserBySecret,
-  updateOAuthTemp,
+  updateCodeVerifier,
 } = require('./database')
-
-const {
-  sha256,
-} = require('./utils')
-
-const {
-  redirectUrl,
-} = require('./vars')
+const { sha256 } = require('./utils')
+const { redirectUrl } = require('./vars')
 
 const {
   getLichessUser,
-  getLichessEmail,
   getLichessToken,
 } = require('./api')
 
 const { CLIENT_ID } = process.env
-const scope = ['email:read', 'challenge:write', 'board:play'].join(' ')
+const scope = ['challenge:write', 'board:play'].join(' ')
 
 const app = express()
 
@@ -40,14 +33,13 @@ app.get('/login/:secret', async (req, res) => {
     redirect_uri: redirectUrl,
     scope,
     code_challenge_method: 'S256',
-    code_challenge: sha256(user.oauth_temp.toString('base64url'))
+    code_challenge: sha256(user.code_verifier.toString('base64url'))
       .toString('base64url'),
     state: req.params.secret,
   }))
 })
 
 app.get('/callback', async (req, res) => {
-  const ip = req.header('x-forwarded-for')
   const user = await getUserBySecret(req.query.state)
   if (!user) {
     res.send('User was not found')
@@ -59,9 +51,8 @@ app.get('/callback', async (req, res) => {
     return
   }
   const lichessUser = await getLichessUser(lichessToken)
-  const { email } = await getLichessEmail(lichessToken)
-  await updateOAuthTemp()
-  await createAccount(user.id, lichessToken, email, ip, lichessUser)
+  await updateCodeVerifier()
+  await createAccount(user.id, lichessToken, lichessUser)
   res.send('Success. Now you can now close this window and return to the bot!')
 })
 
