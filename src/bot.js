@@ -1,10 +1,9 @@
 require('dotenv').config()
 const { Telegraf, Markup } = require('telegraf-develop')
 const fetch = require('node-fetch')
-const ndjson = require('ndjson')
 
 const render = require('./render')
-const { isYourTurn, createGame } = require('./utils')
+const { createGame } = require('./utils')
 const {
   createOrUpdateUser,
   getAccountByUserId,
@@ -12,6 +11,7 @@ const {
   getSecretById,
   regenerateSecret,
 } = require('./database')
+const amqp = require('amqplib')
 
 const bot = new Telegraf(process.env.BOT_TOKEN)
 
@@ -90,85 +90,16 @@ bot.action(/^move_(?<move>(?:[a-h][1-9]){2})$/, async ctx => {
 
 bot.catch(error => console.error(error))
 
-const stream = async (token, id, tgId, accountId) => {
-  const stream = await fetch('https://lichess.org/api/stream/event', {
-    headers: { Authorization: `Bearer ${token}` },
-  }).then(response => response.body)
-  stream.pipe(ndjson.parse()).on('data', async event => {
-    if (event.type === 'gameStart') {
-      const { id: gameId } = event.game
-      let game = await knex.select('id', 'message_id', 'moves').from('games')
-        .where({ game_id: gameId, account_id: accountId }).first()
-      if (!game) {
-        const { message_id } = await bot.telegram.sendMessage(tgId, `started game with id ${gameId}`)
-        const [gameRaw] = await knex('games').insert({
-          game_id: gameId,
-          account_id: accountId,
-          message_id,
-        }).returning('id')
-        game = { id: gameRaw.id, moves: '', message_id }
-      }
-      const gameStream = await fetch(`https://lichess.org/api/board/game/stream/${gameId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }).then(response => response.body)
-      let isWhite = true
-      gameStream.pipe(ndjson.parse()).on('data', async gameEvent => {
-        console.log(gameEvent)
-        if (gameEvent.type === 'gameFull') {
-          isWhite = gameEvent.white.id === id
-          let { moves } = game
-          if (gameEvent.state) {
-            moves = gameEvent.state.moves
-            if (game.moves !== moves) {
-              game.moves = moves
-              await knex('games').update({ moves }).where({ id: game.id })
-            }
-          }
-          const { board, validMoves } = createGame(moves).getStatus()
-          bot.telegram.editMessageText(
-            tgId,
-            game.message_id,
-            null,
-            `White ${gameEvent.white.name} (${gameEvent.white.rating})
-
-Black ${gameEvent.black.name} (${gameEvent.black.rating})`,
-            render(board.squares, isYourTurn(isWhite, moves) ? validMoves : []).extra(),
-          )
-        }
-        if (gameEvent.type === 'gameState') {
-          const { moves } = gameEvent
-          if (moves === game.moves) {
-            return
-          }
-          game.moves = moves
-          await knex('games').update({ moves }).where({ id: game.id })
-          const { board, validMoves } = createGame(moves).getStatus()
-          bot.telegram.editMessageReplyMarkup(
-            tgId,
-            game.message_id,
-            null,
-            render(board.squares, isYourTurn(isWhite, moves) ? validMoves : []),
-          )
-        }
-        if (isYourTurn(isWhite, game.moves)) {
-          bot.telegram.sendMessage(tgId, 'Your turn', { reply_to_message_id: game.message_id })
-        }
-      })
-    }
-  })
-}
+// TODO move to variables
+const queue = 'lichess-tg-queue'
 
 const main = async () => {
-  await bot.telegram.getUpdates(2, 100, -1)
+  await bot.telegram.getUpdates(1, 100, -1)
   await bot.launch()
-  const accountsQuery = knex.select('id').from('accounts')
-    .where({ user_id: knex.raw('users.id') }).limit(1)
-    .orderBy('created_at', 'desc')
-  const users = await knex.select('users.tg_id', 'token', 'lichess_id', 'accounts.id')
-    .from('users')
-    .joinRaw('join accounts on accounts.id = ?', [accountsQuery])
-  users.forEach(({ tg_id, token, lichess_id, id }) =>
-    stream(token, lichess_id, tg_id, id))
+
+  const connection = await amqp.connect('ampq://localhost')
+  const channel = await connection.createChannel()
+  await channel.assertQueue(queue)
 }
 
 main()
