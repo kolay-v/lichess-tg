@@ -12,5 +12,11 @@ module.exports = {
       watch: false,
       autorestart: true,
     },
+    {
+      name: 'lichess-tg-stream',
+      script: 'src/stream.js',
+      watch: false,
+      autorestart: true,
+    },
   ],
 }
