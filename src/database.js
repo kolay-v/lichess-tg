@@ -51,16 +51,16 @@ module.exports.createOrUpdateUser = ({ id, first_name, username, last_name, lang
  * @param {number} userId The user id
  * @param {string} lichessToken Token from lichess
  * @param {Object} lichessUser Lichess user's data
- * @return {Promise<void>}
+ * @return {Promise<[number]>}
  */
-module.exports.createAccount = (userId, lichessToken, lichessUser) => knex('accounts')
-  .insert({
+module.exports.createAccount = (userId, lichessToken, lichessUser) =>
+  knex('accounts').insert({
     user_id: userId,
     token: lichessToken,
     lichess_id: lichessUser.id,
     username: lichessUser.username,
     title: lichessUser.title,
-  })
+  }).returning('id')
 
 /**
  * Updates users temp oauth token
@@ -71,6 +71,19 @@ module.exports.createAccount = (userId, lichessToken, lichessUser) => knex('acco
 module.exports.updateCodeVerifier = (id) => knex('users')
   .update({ code_verifier: randomBytes(32) })
   .where({ id })
+
+/**
+ * returns account by user's id
+ * @param {number} id user id
+ * @return {Promise<{
+ * id: number,
+ * username: string,
+ * token: string,
+ * } | null>} account if found
+ */
+module.exports.getAccountByUserId = (id) => knex.select('id', 'username', 'token')
+  .from('accounts').where({ user_id: id })
+  .orderBy('created_at', 'desc').limit(1).first()
 
 /**
  * returns secret by user's id
@@ -89,7 +102,7 @@ module.exports.regenerateSecret = async (id) => {
   const secret = crypto.randomBytes(16).toString('hex')
   await knex('users').update({
     secret,
-    oauth_temp: crypto.randomBytes(32),
+    code_verifier: crypto.randomBytes(32),
   }).where({ id })
   return secret
 }

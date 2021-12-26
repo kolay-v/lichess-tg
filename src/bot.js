@@ -58,7 +58,7 @@ bot.command('seek', authorized, ctx => {
 })
 
 bot.action(/^select_(?<selection>[a-h][1-9])$/, async ctx => {
-  const game = await getUserGameByMessage(ctx.from.id, ctx.message.message_id)
+  const game = await getUserGameByMessage(ctx.from.id, ctx.callbackQuery.message.message_id)
   if (game === null) {
     return ctx.answerCbQuery('Game not found.')
   }
@@ -67,7 +67,7 @@ bot.action(/^select_(?<selection>[a-h][1-9])$/, async ctx => {
   await ctx.answerCbQuery()
 })
 bot.action(/^unselect$/, async ctx => {
-  const game = await getUserGameByMessage(ctx.from.id, ctx.message.message_id)
+  const game = await getUserGameByMessage(ctx.from.id, ctx.callbackQuery.message.message_id)
   if (game === null) {
     return ctx.answerCbQuery('Game not found.')
   }
@@ -76,7 +76,7 @@ bot.action(/^unselect$/, async ctx => {
   await ctx.answerCbQuery()
 })
 bot.action(/^move_(?<move>(?:[a-h][1-9]){2})$/, async ctx => {
-  const game = await getUserGameByMessage(ctx.from.id, ctx.message.message_id)
+  const game = await getUserGameByMessage(ctx.from.id, ctx.callbackQuery.message.message_id)
   if (game === null) {
     return ctx.answerCbQuery('Game not found.')
   }
@@ -97,7 +97,7 @@ const main = async () => {
   await bot.telegram.getUpdates(1, 100, -1)
   await bot.launch()
 
-  const connection = await amqp.connect('ampq://localhost')
+  const connection = await amqp.connect('amqp://localhost')
   const channel = await connection.createChannel()
   await channel.assertQueue(queue)
 }

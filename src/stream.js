@@ -12,8 +12,10 @@ const bot = new Telegraf(process.env.BOT_TOKEN)
 const streams = new Map()
 
 const stream = async (accountId) => {
-  const { token, id, lichessId } = knex.select('token', 'lichess_id as lichessId', 'user_id as id')
-    .from('accounts').where({ id: accountId })
+  console.log('subscribed to ', accountId)
+  const { token, id, lichessId } = await knex.select('token', 'lichess_id as lichessId', 'user_id as id')
+    .from('accounts').where({ id: accountId }).first()
+  console.log({ token, id, lichessId })
   const stream = await fetch('https://lichess.org/api/stream/event', {
     headers: { Authorization: `Bearer ${token}` },
   }).then(response => response.body)
@@ -25,12 +27,12 @@ const stream = async (accountId) => {
         .where({ game_id: gameId, account_id: accountId }).first()
       if (!game) {
         const { message_id } = await bot.telegram.sendMessage(id, `started game with id ${gameId}`)
-        const [gameRaw] = await knex('games').insert({
+        const [dbGameId] = await knex('games').insert({
           game_id: gameId,
           account_id: accountId,
           message_id,
         }).returning('id')
-        game = { id: gameRaw.id, moves: '', message_id }
+        game = { id: dbGameId, moves: null, message_id }
       }
       const gameStream = await fetch(`https://lichess.org/api/board/game/stream/${gameId}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -87,7 +89,7 @@ Black ${gameEvent.black.name} (${gameEvent.black.rating})`,
 const queue = 'lichess-tg-queue'
 
 const main = async () => {
-  const connection = await amqp.connect('ampq://localhost')
+  const connection = await amqp.connect('amqp://localhost')
   const channel = await connection.createChannel()
   await channel.assertQueue(queue)
   await channel.consume(queue, (msg) => {
@@ -96,7 +98,7 @@ const main = async () => {
     }
     const data = JSON.parse(msg.content.toString())
     if (data.type === 'subscribe') {
-      stream(data.accountId)
+      stream(data.accountId).catch(console.error)
     } else if (data.type === 'unsubscribe') {
       const activeStreams = streams.get(data.accountId)
       if (activeStreams) {

@@ -13,6 +13,10 @@ const {
   getLichessUser,
   getLichessToken,
 } = require('./api')
+const amqp = require('amqplib')
+
+// TODO move to variables
+const queue = 'lichess-tg-queue'
 
 const { CLIENT_ID } = process.env
 const scope = ['challenge:write', 'board:play'].join(' ')
@@ -45,16 +49,25 @@ app.get('/callback', async (req, res) => {
     res.send('User was not found')
     return
   }
-  const lichessToken = await getLichessToken(req.query.code, user.oauth_temp.toString('base64url'))
+  const lichessToken = await getLichessToken(req.query.code, user.code_verifier.toString('base64url'))
   if (!lichessToken) {
     res.send('Failed to get token')
     return
   }
   const lichessUser = await getLichessUser(lichessToken)
-  await updateCodeVerifier()
-  await createAccount(user.id, lichessToken, lichessUser)
+  await updateCodeVerifier(user.id)
+  const [account] = await createAccount(user.id, lichessToken, lichessUser)
+  console.log(account)
   res.send('Success. Now you can now close this window and return to the bot!')
+  req.app.channel.sendToQueue(queue, Buffer.from(JSON.stringify({
+    type: 'subscribe',
+    accountId: account,
+  })))
 })
 
-app.listen(3000)
-module.exports = { redirectUrl }
+amqp.connect('amqp://localhost').then(async (connection) => {
+  const channel = await connection.createChannel()
+  await channel.assertQueue(queue)
+  app.channel = channel
+  app.listen(3000)
+})
