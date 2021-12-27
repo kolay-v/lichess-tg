@@ -5,6 +5,7 @@ const ndjson = require('ndjson')
 const { createGame, isYourTurn } = require('./utils')
 const render = require('./render')
 const { Telegraf } = require('telegraf-develop')
+const { findGame } = require('./database')
 const knex = require('knex')(require('../knexfile'))
 
 const bot = new Telegraf(process.env.BOT_TOKEN)
@@ -15,7 +16,6 @@ const stream = async (accountId) => {
   console.log('subscribed to ', accountId)
   const { token, id, lichessId } = await knex.select('token', 'lichess_id as lichessId', 'user_id as id')
     .from('accounts').where({ id: accountId }).first()
-  console.log({ token, id, lichessId })
   const stream = await fetch('https://lichess.org/api/stream/event', {
     headers: { Authorization: `Bearer ${token}` },
   }).then(response => response.body)
@@ -23,8 +23,7 @@ const stream = async (accountId) => {
   stream.pipe(ndjson.parse()).on('data', async event => {
     if (event.type === 'gameStart') {
       const { id: gameId } = event.game
-      let game = await knex.select('id', 'message_id', 'moves').from('games')
-        .where({ game_id: gameId, account_id: accountId }).first()
+      let game = await findGame(gameId, accountId)
       if (!game) {
         const { message_id } = await bot.telegram.sendMessage(id, `started game with id ${gameId}`)
         const [dbGameId] = await knex('games').insert({

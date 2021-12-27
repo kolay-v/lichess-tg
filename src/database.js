@@ -106,3 +106,13 @@ module.exports.regenerateSecret = async (id) => {
   }).where({ id })
   return secret
 }
+
+/**
+ * Finds game by gameId and accountId
+ * @param {string} gameId lichess id
+ * @param {number} accountId
+ * @return {Promise<{ id: number, moves: string | null, message_id: number } | null>} game if found
+ */
+module.exports.findGame = (gameId, accountId) => knex.select('id', 'message_id', 'moves')
+  .from('games')
+  .where({ game_id: gameId, account_id: accountId }).first()
