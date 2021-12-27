@@ -1,0 +1,37 @@
+version: "3.7"
+services:
+  rabbit:
+    image: "rabbitmq:3.9.11-alpine"
+    restart: always
+  db:
+    image: "postgres"
+    environment:
+      - POSTGRES_USER=docker
+      - POSTGRES_PASSWORD=docker
+    volumes:
+      - ./db-data:/var/lib/postgresql/data/
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U docker"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+      - rabbit
+    env_file:
+      - .env
+    links:
+      - db
+      - rabbit
+    environment:
+      - DB_DATABASE=lichess-tg
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USERNAME=docker
+      - DB_PASSWORD=docker
+      - RABBIT_URL=amqp://rabbit

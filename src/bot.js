@@ -97,7 +97,7 @@ const main = async () => {
   await bot.telegram.getUpdates(1, 100, -1)
   await bot.launch()
 
-  const connection = await amqp.connect('amqp://localhost')
+  const connection = await amqp.connect(process.env.RABBIT_URL)
   const channel = await connection.createChannel()
   await channel.assertQueue(queue)
 }

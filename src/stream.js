@@ -88,7 +88,7 @@ Black ${gameEvent.black.name} (${gameEvent.black.rating})`,
 const queue = 'lichess-tg-queue'
 
 const main = async () => {
-  const connection = await amqp.connect('amqp://localhost')
+  const connection = await amqp.connect(process.env.RABBIT_URL)
   const channel = await connection.createChannel()
   await channel.assertQueue(queue)
   await channel.consume(queue, (msg) => {

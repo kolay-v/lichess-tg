@@ -65,7 +65,7 @@ app.get('/callback', async (req, res) => {
   })))
 })
 
-amqp.connect('amqp://localhost').then(async (connection) => {
+amqp.connect(process.env.RABBIT_URL).then(async (connection) => {
   const channel = await connection.createChannel()
   await channel.assertQueue(queue)
   app.channel = channel
