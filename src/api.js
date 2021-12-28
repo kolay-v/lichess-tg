@@ -1,4 +1,5 @@
-const { fetcher } = require('./utils')
+const fetch = require('node-fetch')
+const { fetchJson } = require('./utils')
 const { redirectUrl } = require('./vars')
 
 const { CLIENT_ID } = process.env
@@ -10,9 +11,11 @@ const { CLIENT_ID } = process.env
  * @param  {string} verifier base64url encoded verifier generated before oAuth
  * @return {Promise<string>} The lichess token.
  */
-module.exports.getLichessToken = (authCode, verifier) => fetcher('https://lichess.org/api/token', {
+module.exports.getLichessToken = (authCode, verifier) => fetchJson('https://lichess.org/api/token', {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  headers: {
+    'Content-Type': 'application/json',
+  },
   body: JSON.stringify({
     grant_type: 'authorization_code',
     redirect_uri: redirectUrl,
@@ -20,7 +23,9 @@ module.exports.getLichessToken = (authCode, verifier) => fetcher('https://liches
     code: authCode,
     code_verifier: verifier,
   }),
-}).then(({ access_token }) => access_token)
+})
+  .then(({ access_token }) => access_token)
+  .catch(console.error)
 
 /**
  * Gets the lichess user.
@@ -28,8 +33,58 @@ module.exports.getLichessToken = (authCode, verifier) => fetcher('https://liches
  * @param  {string} token lichess auth token
  * @return {Promise<Object>} The lichess user.
  */
-module.exports.getLichessUser = (token) => fetcher('https://lichess.org/api/account', {
+module.exports.getLichessUser = (token) => fetchJson('https://lichess.org/api/account', {
   headers: {
     'Authorization': `Bearer ${token}`,
   },
-})
+}).catch(console.error)
+
+/**
+ * Accepts the challenge.
+ *
+ * @param {string} token The auth token
+ * @param {string} id The challenge id
+ * @return {Promise<Object>}
+ */
+module.exports.acceptChallenge = (token, id) => fetchJson(`https://lichess.org/api/challenge/${id}/accept`, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+  },
+}).catch(console.error)
+
+/**
+ * Seeks for a pair.
+ *
+ * @param {string} token The token
+ * @return {Promise<void>}
+ */
+module.exports.seek = (token) => fetch('https://lichess.org/api/board/seek', {
+  headers: {
+    'Authorization': `Bearer ${token}`,
+  },
+  method: 'POST',
+  body: new URLSearchParams({
+    time: '10',
+    increment: '5',
+    rated: 'false',
+  }),
+}).catch(console.error)
+
+/**
+ * Makes a move.
+ *
+ * @param {string} token The token
+ * @param {string} gameId The game identifier
+ * @param {string} move The move to play, in UCI format (ex: e2e4)
+ * @return {Promise<Object>} { ok }
+ */
+module.exports.makeMove = (token, gameId, move) => fetchJson(
+  `https://lichess.org/api/board/game/${gameId}/move/${move}`,
+  {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  },
+).catch(console.error)

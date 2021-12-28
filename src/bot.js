@@ -1,15 +1,15 @@
 require('dotenv').config()
 const { Telegraf, Markup } = require('telegraf-develop')
-const fetch = require('node-fetch')
 
 const render = require('./render')
+const { acceptChallenge, seek, makeMove } = require('./api')
 const { createGame } = require('./utils')
 const {
   createOrUpdateUser,
   getAccountByUserId,
   getUserGameByMessage,
   getSecretById,
-  regenerateSecret,
+  dbRefreshSecret,
 } = require('./database')
 const amqp = require('amqplib')
 
@@ -29,35 +29,33 @@ const authorized = async (ctx, next) => {
   return next()
 }
 
-bot.command('login', async ctx => {
+bot.command('login', async (ctx) => {
   let secret = (await getSecretById(ctx.from.id))?.secret
   if (!secret) {
-    secret = await regenerateSecret(ctx.from.id)
+    secret = await dbRefreshSecret(ctx.from.id)
   }
   ctx.reply('Click button bellow.', Markup.inlineKeyboard([
     Markup.urlButton('Login', `${process.env.URL}/login/${secret}`),
   ]).extra())
 })
-bot.start(ctx => ctx.reply('Hello. You should /login and then send me challenge id or /seek command'))
-bot.hears(/^[a-zA-Z\d]{4,}$/, authorized, ctx => {
-  fetch(`https://lichess.org/api/challenge/${ctx.message.text}/accept`, {
-    headers: { Authorization: `Bearer ${ctx.account.token}` }, method: 'POST',
-  })
+
+bot.start(async (ctx) => {
+  ctx.reply('Hello. You should /login and then send me challenge id or /seek command')
 })
 
-bot.command('seek', authorized, ctx => {
-  fetch('https://lichess.org/api/board/seek', {
-    headers: { Authorization: `Bearer ${ctx.account.token}` },
-    method: 'POST',
-    body: new URLSearchParams({
-      time: '10',
-      increment: '5',
-      rated: 'false',
-    }),
-  }).catch(console.error)
+bot.hears(/^[a-zA-Z\d]{4,}$/, authorized, async (ctx) => {
+  const { ok } = await acceptChallenge(ctx.account.token, ctx.message.text) || { ok: false }
+  if (ok) {
+    await ctx.reply(`Challenge ${ctx.match[0]} accepted!`)
+      .catch(console.error)
+  }
 })
 
-bot.action(/^select_(?<selection>[a-h][1-9])$/, async ctx => {
+bot.command('seek', authorized, async (ctx) => {
+  seek(ctx.account.token)
+})
+
+bot.action(/^select_(?<selection>[a-h][1-8])$/, async (ctx) => {
   const game = await getUserGameByMessage(ctx.from.id, ctx.callbackQuery.message.message_id)
   if (game === null) {
     return ctx.answerCbQuery('Game not found.')
@@ -66,26 +64,25 @@ bot.action(/^select_(?<selection>[a-h][1-9])$/, async ctx => {
   await ctx.editMessageReplyMarkup(render(board.squares, validMoves, ctx.match.groups.selection))
   await ctx.answerCbQuery()
 })
-bot.action(/^unselect$/, async ctx => {
+
+bot.action(/^unselect$/, async (ctx) => {
   const game = await getUserGameByMessage(ctx.from.id, ctx.callbackQuery.message.message_id)
   if (game === null) {
     return ctx.answerCbQuery('Game not found.')
   }
   const { board, validMoves } = createGame(game.moves).getStatus()
   await ctx.editMessageReplyMarkup(render(board.squares, validMoves))
-  await ctx.answerCbQuery()
+  return ctx.answerCbQuery()
 })
-bot.action(/^move_(?<move>(?:[a-h][1-9]){2})$/, async ctx => {
+
+bot.action(/^move_(?<move>(?:[a-h][1-8]){2})$/, async (ctx) => {
   const game = await getUserGameByMessage(ctx.from.id, ctx.callbackQuery.message.message_id)
-  if (game === null) {
+  if (!game) {
     return ctx.answerCbQuery('Game not found.')
   }
   const { token, game_id: gameId } = game
-  fetch(`https://lichess.org/api/board/game/${gameId}/move/${ctx.match.groups.move}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-  }).catch(console.error)
-  await ctx.answerCbQuery()
+  await makeMove(token, gameId, ctx.match.groups.move)
+  return ctx.answerCbQuery()
 })
 
 bot.catch(error => console.error(error))
@@ -94,12 +91,12 @@ bot.catch(error => console.error(error))
 const queue = 'lichess-tg-queue'
 
 const main = async () => {
-  await bot.telegram.getUpdates(1, 100, -1)
-  await bot.launch()
-
   const connection = await amqp.connect(process.env.RABBIT_URL)
   const channel = await connection.createChannel()
   await channel.assertQueue(queue)
+
+  await bot.telegram.getUpdates(1, 100, -1)
+  await bot.launch()
 }
 
 main()

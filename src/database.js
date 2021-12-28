@@ -1,6 +1,5 @@
-const { randomBytes } = require('crypto')
-const crypto = require('crypto')
 const knex = require('knex')(require('../knexfile'))
+const { generateSecret } = require('./utils')
 
 /**
  * Gets the user game by message.
@@ -27,7 +26,7 @@ module.exports.getUserBySecret = (secret) => knex('users')
   .first()
 
 /**
- * Creates or updates user by content
+ * Creates or updates user by content.
  *
  * @param {User} Telegram user from context
  * @return {Promise<void>}
@@ -46,80 +45,92 @@ module.exports.createOrUpdateUser = ({ id, first_name, username, last_name, lang
   .merge()
 
 /**
- * Creates account after oAuth
+ * Creates account after oAuth.
  *
  * @param {number} userId The user id
  * @param {string} lichessToken Token from lichess
  * @param {Object} lichessUser Lichess user's data
  * @return {Promise<[number]>}
  */
-module.exports.createAccount = (userId, lichessToken, lichessUser) =>
-  knex('accounts').insert({
+module.exports.createAccount = (userId, lichessToken, lichessUser) => knex('accounts')
+  .insert({
     user_id: userId,
     token: lichessToken,
     lichess_id: lichessUser.id,
     username: lichessUser.username,
     title: lichessUser.title,
-  }).returning('id')
+  })
+  .returning('id')
 
 /**
- * Updates users temp oauth token
+ * Updates users temp oauth token.
  *
  * @param {number} id The user identifier
  * @return {Promise<void>}
  */
 module.exports.updateCodeVerifier = (id) => knex('users')
-  .update({ code_verifier: randomBytes(32) })
+  .update({ code_verifier: generateSecret(32) })
   .where({ id })
 
 /**
- * returns account by user's id
- * @param {number} id user id
- * @return {Promise<{
- * id: number,
- * username: string,
- * token: string,
- * } | null>} account if found
+ * Gets account by user id.
+ *
+ * @param {number} id The user id
+ * @return {Promise<Object|null>}
  */
-module.exports.getAccountByUserId = (id) => knex.select('id', 'username', 'token')
-  .from('accounts').where({ user_id: id })
+module.exports.getAccountByUserId = (id) => knex('accounts')
+  .select('id', 'username', 'token')
+  .where({ user_id: id })
   .orderBy('created_at', 'desc').limit(1).first()
 
 /**
- * returns secret by user's id
- * @param {number} id user id
- * @return {Promise<{ secret: string } | null>} secret if found
+ * Gets the secret by user id.
+ *
+ * @param {number} id The user id
+ * @return {Promise<Object>}
  */
-module.exports.getSecretById = (id) => knex.select('secret')
-  .from('users').where({ id })
+module.exports.dbGetSecretById = (id) => knex('users')
+  .select('secret')
+  .where({ id })
 
 /**
- * regenerates secret by user's id
- * @param {number} id user id
- * @return {Promise<string>} secret
+ * Regenerates secret by user's id
+ *
+ * @param {number} id The user id
+ * @return {Promise<string>}
  */
-module.exports.regenerateSecret = async (id) => {
-  const secret = crypto.randomBytes(16).toString('hex')
-  await knex('users').update({
-    secret,
-    code_verifier: crypto.randomBytes(32),
-  }).where({ id })
+module.exports.dbRefreshSecret = async (id) => {
+  const secret = generateSecret(16, 'hex')
+  await knex('users')
+    .update({ secret, code_verifier: generateSecret(32) })
+    .where({ id })
   return secret
 }
 
 /**
  * Finds game by gameId and accountId
+ *
  * @param {string} gameId lichess id
  * @param {number} accountId
  * @return {Promise<{ id: number, moves: string | null, message_id: number } | null>} game if found
  */
-module.exports.findGame = (gameId, accountId) => knex.select('id', 'message_id', 'moves')
-  .from('games')
-  .where({ game_id: gameId, account_id: accountId }).first()
+module.exports.dbFindGame = (gameId, accountId) => knex('games')
+  .select('id', 'message_id', 'moves')
+  .where({ game_id: gameId, account_id: accountId })
+  .first()
 
-module.exports.createDBGame = async (gameId, accountId, messageId) => (await knex('games')
+/**
+ * Creates a db game.
+ *
+ * @param  {<type>} gameId The game identifier
+ * @param  {<type>} accountId The account identifier
+ * @param  {<type>} messageId The message identifier
+ * @return {<type>} { description_of_the_return_value }
+ */
+module.exports.dbCreateGame = async (gameId, accountId, messageId) => (await knex('games')
   .insert({
     game_id: gameId,
     account_id: accountId,
     message_id: messageId,
-  }).returning('id'))[0]
+  })
+  .returning('id'))[0]

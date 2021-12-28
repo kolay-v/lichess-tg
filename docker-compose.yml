@@ -1,10 +1,12 @@
 version: "3.7"
 services:
+
   rabbit:
-    image: "rabbitmq:3.9.11-alpine"
+    image: rabbitmq:3.9.11-alpine
     restart: always
+
   db:
-    image: "postgres:alpine"
+    image: postgres:alpine
     environment:
       - POSTGRES_DB=lichess-tg
       - POSTGRES_USER=docker
@@ -13,10 +15,13 @@ services:
       - ./db-data:/var/lib/postgresql/data/
     restart: always
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U docker -d lichess-tg"]
+      test:
+        - CMD-SHELL
+        - "pg_isready -U docker -d lichess-tg"
       interval: 5s
       timeout: 5s
       retries: 10
+
   migration:
     build: .
     command: npm run migrate
@@ -30,6 +35,7 @@ services:
       - DB_PORT=5432
       - DB_USERNAME=docker
       - DB_PASSWORD=docker
+
   app:
     build: .
     ports:

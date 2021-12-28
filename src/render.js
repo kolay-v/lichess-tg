@@ -31,7 +31,7 @@ const render = (board, validMoves, selection = null) => {
   const vertical = Array.from({ length: 8 }, (item, idx) => idx + 1).reverse()
   let pieceMoves = []
   if (selection) {
-    pieceMoves = validMoves.find(move => squareToString(move.src) === selection).squares
+    pieceMoves = validMoves.find((move) => squareToString(move.src) === selection).squares
   }
 
   /**
@@ -45,10 +45,8 @@ const render = (board, validMoves, selection = null) => {
      *
      * @type {Object}
      */
-    const square = board
-      .find(({ file, rank }) => file === col && rank === row)
-    const isSquareTarget = pieceMoves.find(move =>
-      squareToString(move) === squareToString(square))
+    const square = board.find(({ file, rank }) => file === col && rank === row)
+    const isSquareTarget = pieceMoves.find((move) => squareToString(move) === squareToString(square))
     let data = 'none'
     if (
       !selection &&
@@ -62,6 +60,7 @@ const render = (board, validMoves, selection = null) => {
         data = 'unselect'
       }
     }
+
     /**
      * If it is a piece.
      */

@@ -1,4 +1,4 @@
-const { createHash } = require('crypto')
+const { createHash, randomBytes } = require('crypto')
 const fetch = require('node-fetch')
 const chess = require('chess')
 
@@ -8,7 +8,7 @@ const chess = require('chess')
  * @param {any} rest The rest of arguments
  * @return {Promise<any>} Async response
  */
-module.exports.fetcher = (...rest) => fetch(...rest)
+module.exports.fetchJson = (...rest) => fetch(...rest)
   .then(res => res.json())
   .catch(console.error)
 
@@ -21,6 +21,17 @@ module.exports.fetcher = (...rest) => fetch(...rest)
 module.exports.sha256 = (data) => createHash('sha256')
   .update(data)
   .digest()
+
+/**
+ * Generates new secret
+ *
+ * @param {number} [depth=16] The depth of randomness
+ * @param {string} [format=''] The output format
+ * @return {string|Buffer}
+ */
+module.exports.generateSecret = (depth = 16, format = '') => format
+  ? randomBytes(depth).toString(format)
+  : randomBytes(depth)
 
 /**
  * Determines if your turn.
