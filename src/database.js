@@ -1,4 +1,5 @@
 const knex = require('knex')(require('../knexfile'))
+
 const { generateSecret } = require('./utils')
 
 /**
@@ -122,10 +123,10 @@ module.exports.dbFindGame = (gameId, accountId) => knex('games')
 /**
  * Creates a db game.
  *
- * @param  {<type>} gameId The game identifier
- * @param  {<type>} accountId The account identifier
- * @param  {<type>} messageId The message identifier
- * @return {<type>} { description_of_the_return_value }
+ * @param {<type>} gameId The game identifier
+ * @param {<type>} accountId The account identifier
+ * @param {<type>} messageId The message identifier
+ * @return {<type>}
  */
 module.exports.dbCreateGame = async (gameId, accountId, messageId) => (await knex('games')
   .insert({
@@ -134,3 +135,25 @@ module.exports.dbCreateGame = async (gameId, accountId, messageId) => (await kne
     message_id: messageId,
   })
   .returning('id'))[0]
+
+/**
+ * Gets accounts by id.
+ *
+ * @param {number} id The identifier
+ * @return {Promise}
+ */
+module.exports.dbGetAccountById = (id) => knex('accounts')
+  .select('token', 'lichess_id as lichessId', 'user_id as id')
+  .where({ id })
+  .first()
+
+/**
+ * Updates the game in DB.
+ *
+ * @param {id} id The identifier of the game.
+ * @param {string} moves The moves separaded by a space
+ * @return {Promise}
+ */
+module.exports.dbUpdateGame = (id, moves) => knex('games')
+  .update({ moves })
+  .where({ id })

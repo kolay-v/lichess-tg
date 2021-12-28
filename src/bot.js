@@ -94,7 +94,7 @@ bot.action(/^move_(?<move>(?:[a-h][1-8]){2})$/, async (ctx) => {
   return ctx.answerCbQuery()
 })
 
-bot.catch(error => console.error(error))
+bot.catch((error) => console.error(error))
 
 // TODO move to variables
 const queue = 'lichess-tg-queue'

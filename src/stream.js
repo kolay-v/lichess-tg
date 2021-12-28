@@ -1,12 +1,26 @@
 require('dotenv').config()
 const amqp = require('amqplib')
-const fetch = require('node-fetch')
 const ndjson = require('ndjson')
-const { createGame, isYourTurn } = require('./utils')
-const render = require('./render')
 const { Telegraf } = require('telegraf-develop')
-const { findGame, createDBGame } = require('./database')
-const knex = require('knex')(require('../knexfile'))
+
+const render = require('./render')
+
+const {
+  createGame,
+  isYourTurn,
+} = require('./utils')
+
+const {
+  dbFindGame,
+  dbCreateGame,
+  dbUpdateGame,
+  dbGetAccountById,
+} = require('./database')
+
+const {
+  apiGetGameStream,
+  apiGetMainStream,
+} = require('./api')
 
 const bot = new Telegraf(process.env.BOT_TOKEN)
 
@@ -14,28 +28,23 @@ const streams = new Map()
 
 const stream = async (accountId) => {
   console.log('subscribed to ', accountId)
-  const { token, id, lichessId } = await knex.select('token', 'lichess_id as lichessId', 'user_id as id')
-    .from('accounts').where({ id: accountId }).first()
-  const stream = await fetch('https://lichess.org/api/stream/event', {
-    headers: { Authorization: `Bearer ${token}` },
-  }).then(response => response.body)
+  const { token, id, lichessId } = await dbGetAccountById(accountId)
+  const stream = await apiGetMainStream(token)
   streams.set(accountId, [...(streams.get(accountId) || []), stream])
-  stream.pipe(ndjson.parse()).on('data', async event => {
+  stream.pipe(ndjson.parse()).on('data', async (event) => {
     if (event.type !== 'gameStart') {
       return
     }
     const { id: gameId } = event.game
-    let game = await findGame(gameId, accountId)
+    let game = await dbFindGame(gameId, accountId)
     if (!game) {
       const { message_id } = await bot.telegram.sendMessage(id, `started game with id ${gameId}`)
-      game = { id: await createDBGame(gameId, accountId, message_id), moves: null, message_id }
+      game = { id: await dbCreateGame(gameId, accountId, message_id), moves: null, message_id }
     }
-    const gameStream = await fetch(`https://lichess.org/api/board/game/stream/${gameId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    }).then(response => response.body)
+    const gameStream = await apiGetGameStream(token, gameId)
     streams.set(accountId, [...(streams.get(accountId) || []), gameStream])
     let isWhite = true
-    gameStream.pipe(ndjson.parse()).on('data', async gameEvent => {
+    gameStream.pipe(ndjson.parse()).on('data', async (gameEvent) => {
       console.log(gameEvent)
       if (gameEvent.type === 'gameFull') {
         isWhite = gameEvent.white.id === lichessId
@@ -44,7 +53,7 @@ const stream = async (accountId) => {
           moves = gameEvent.state.moves
           if (game.moves !== moves) {
             game.moves = moves
-            await knex('games').update({ moves }).where({ id: game.id })
+            await dbUpdateGame(game.id, moves)
           }
         }
         const { board, validMoves } = createGame(moves).getStatus()
@@ -64,7 +73,7 @@ Black ${gameEvent.black.name} (${gameEvent.black.rating})`,
           return
         }
         game.moves = moves
-        await knex('games').update({ moves }).where({ id: game.id })
+        await dbUpdateGame(game.id, moves)
         const { board, validMoves } = createGame(moves).getStatus()
         bot.telegram.editMessageReplyMarkup(
           id,
