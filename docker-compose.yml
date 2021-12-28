@@ -4,6 +4,11 @@ services:
   rabbit:
     image: rabbitmq:3.9.11-alpine
     restart: always
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   db:
     image: postgres:alpine
@@ -26,7 +31,8 @@ services:
     build: .
     command: npm run migrate
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     links:
       - db
     environment:
@@ -41,8 +47,12 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - migration
-      - rabbit
+      db:
+        condition: service_healthy
+      migration:
+        condition: service_started
+      rabbit:
+        condition: service_healthy
     env_file:
       - .env
     links:
