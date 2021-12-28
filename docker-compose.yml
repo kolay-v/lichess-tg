@@ -33,8 +33,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    links:
-      - db
     environment:
       - DB_DATABASE=lichess-tg
       - DB_HOST=db
@@ -55,8 +53,6 @@ services:
         condition: service_healthy
     env_file:
       - .env
-    links:
-      - rabbit
     environment:
       - DB_DATABASE=lichess-tg
       - DB_HOST=db
