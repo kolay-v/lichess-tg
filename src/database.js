@@ -116,3 +116,10 @@ module.exports.regenerateSecret = async (id) => {
 module.exports.findGame = (gameId, accountId) => knex.select('id', 'message_id', 'moves')
   .from('games')
   .where({ game_id: gameId, account_id: accountId }).first()
+
+module.exports.createDBGame = async (gameId, accountId, messageId) => (await knex('games')
+  .insert({
+    game_id: gameId,
+    account_id: accountId,
+    message_id: messageId,
+  }).returning('id'))[0]
