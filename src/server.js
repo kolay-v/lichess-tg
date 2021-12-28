@@ -1,19 +1,20 @@
 require('dotenv').config()
+const amqp = require('amqplib')
 const express = require('express')
 
-const {
-  createAccount,
-  getUserBySecret,
-  updateCodeVerifier,
-} = require('./database')
 const { sha256 } = require('./utils')
 const { redirectUrl } = require('./vars')
 
 const {
-  getLichessUser,
-  getLichessToken,
+  apiGetLichessUser,
+  apiGetLichessToken,
 } = require('./api')
-const amqp = require('amqplib')
+
+const {
+  dbCreateAccount,
+  dbGetUserBySecret,
+  dbUpdateCodeVerifier,
+} = require('./database')
 
 // TODO move to variables
 const queue = 'lichess-tg-queue'
@@ -24,7 +25,7 @@ const scope = ['challenge:write', 'board:play'].join(' ')
 const app = express()
 
 app.get('/login/:secret', async (req, res) => {
-  const user = await getUserBySecret(req.params.secret)
+  const user = await dbGetUserBySecret(req.params.secret)
 
   if (!user) {
     res.send('Invalid link.')
@@ -44,19 +45,19 @@ app.get('/login/:secret', async (req, res) => {
 })
 
 app.get('/callback', async (req, res) => {
-  const user = await getUserBySecret(req.query.state)
+  const user = await dbGetUserBySecret(req.query.state)
   if (!user) {
     res.send('User was not found')
     return
   }
-  const lichessToken = await getLichessToken(req.query.code, user.code_verifier.toString('base64url'))
+  const lichessToken = await apiGetLichessToken(req.query.code, user.code_verifier.toString('base64url'))
   if (!lichessToken) {
     res.send('Failed to get token')
     return
   }
-  const lichessUser = await getLichessUser(lichessToken)
-  await updateCodeVerifier(user.id)
-  const [account] = await createAccount(user.id, lichessToken, lichessUser)
+  const lichessUser = await apiGetLichessUser(lichessToken)
+  await dbUpdateCodeVerifier(user.id)
+  const [account] = await dbCreateAccount(user.id, lichessToken, lichessUser)
   console.log(account)
   res.send('Success. Now you can now close this window and return to the bot!')
   req.app.channel.sendToQueue(queue, Buffer.from(JSON.stringify({

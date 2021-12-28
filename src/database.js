@@ -8,7 +8,7 @@ const { generateSecret } = require('./utils')
  * @param {number} messageId The message identifier
  * @return {Promise<{ token: string, game_id: number, moves: string } | null>} The user game by message.
  */
-module.exports.getUserGameByMessage = (userId, messageId) => knex('games')
+module.exports.dbGetUserGameByMessage = (userId, messageId) => knex('games')
   .select('token', 'game_id', 'moves')
   .where({ message_id: messageId, user_id: userId })
   .leftJoin('accounts', 'games.account_id', 'accounts.id')
@@ -20,7 +20,7 @@ module.exports.getUserGameByMessage = (userId, messageId) => knex('games')
  * @param {string} secret The secret
  * @return {Promise<{ id: number, code_verifier: Buffer } | null>} The user by secret.
  */
-module.exports.getUserBySecret = (secret) => knex('users')
+module.exports.dbGetUserBySecret = (secret) => knex('users')
   .select('id', 'code_verifier')
   .where({ secret })
   .first()
@@ -31,7 +31,7 @@ module.exports.getUserBySecret = (secret) => knex('users')
  * @param {User} Telegram user from context
  * @return {Promise<void>}
  */
-module.exports.createOrUpdateUser = ({ id, first_name, username, last_name, language_code }) => knex('users')
+module.exports.dbCreateOrUpdateUser = ({ id, first_name, username, last_name, language_code }) => knex('users')
   .insert({
     id,
     tg_info: JSON.stringify({
@@ -52,7 +52,7 @@ module.exports.createOrUpdateUser = ({ id, first_name, username, last_name, lang
  * @param {Object} lichessUser Lichess user's data
  * @return {Promise<[number]>}
  */
-module.exports.createAccount = (userId, lichessToken, lichessUser) => knex('accounts')
+module.exports.dbCreateAccount = (userId, lichessToken, lichessUser) => knex('accounts')
   .insert({
     user_id: userId,
     token: lichessToken,
@@ -68,7 +68,7 @@ module.exports.createAccount = (userId, lichessToken, lichessUser) => knex('acco
  * @param {number} id The user identifier
  * @return {Promise<void>}
  */
-module.exports.updateCodeVerifier = (id) => knex('users')
+module.exports.dbUpdateCodeVerifier = (id) => knex('users')
   .update({ code_verifier: generateSecret(32) })
   .where({ id })
 
@@ -78,7 +78,7 @@ module.exports.updateCodeVerifier = (id) => knex('users')
  * @param {number} id The user id
  * @return {Promise<Object|null>}
  */
-module.exports.getAccountByUserId = (id) => knex('accounts')
+module.exports.dbGetAccountByUserId = (id) => knex('accounts')
   .select('id', 'username', 'token')
   .where({ user_id: id })
   .orderBy('created_at', 'desc').limit(1).first()

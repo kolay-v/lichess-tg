@@ -1,27 +1,36 @@
 require('dotenv').config()
+const amqp = require('amqplib')
 const { Telegraf, Markup } = require('telegraf-develop')
 
-const render = require('./render')
-const { acceptChallenge, seek, makeMove } = require('./api')
-const { createGame } = require('./utils')
 const {
-  createOrUpdateUser,
-  getAccountByUserId,
-  getUserGameByMessage,
-  getSecretById,
+  createGame,
+} = require('./utils')
+
+const {
+  apiSeek,
+  apiMakeMove,
+  apiAcceptChallenge,
+} = require('./api')
+
+const {
+  dbGetSecretById,
   dbRefreshSecret,
+  dbCreateOrUpdateUser,
+  dbGetAccountByUserId,
+  dbGetUserGameByMessage,
 } = require('./database')
-const amqp = require('amqplib')
+
+const render = require('./render')
 
 const bot = new Telegraf(process.env.BOT_TOKEN)
 
 bot.on(['message', 'callback_query'], async (ctx, next) => {
-  await createOrUpdateUser(ctx.from).catch(console.error)
+  await dbCreateOrUpdateUser(ctx.from).catch(console.error)
   return next()
 })
 
 const authorized = async (ctx, next) => {
-  const account = await getAccountByUserId(ctx.from.id)
+  const account = await dbGetAccountByUserId(ctx.from.id)
   if (!account) {
     return ctx.reply('First you need to /login')
   }
@@ -30,7 +39,7 @@ const authorized = async (ctx, next) => {
 }
 
 bot.command('login', async (ctx) => {
-  let secret = (await getSecretById(ctx.from.id))?.secret
+  let secret = (await dbGetSecretById(ctx.from.id))?.secret
   if (!secret) {
     secret = await dbRefreshSecret(ctx.from.id)
   }
@@ -44,7 +53,7 @@ bot.start(async (ctx) => {
 })
 
 bot.hears(/^[a-zA-Z\d]{4,}$/, authorized, async (ctx) => {
-  const { ok } = await acceptChallenge(ctx.account.token, ctx.message.text) || { ok: false }
+  const { ok } = await apiAcceptChallenge(ctx.account.token, ctx.message.text) || { ok: false }
   if (ok) {
     await ctx.reply(`Challenge ${ctx.match[0]} accepted!`)
       .catch(console.error)
@@ -52,11 +61,11 @@ bot.hears(/^[a-zA-Z\d]{4,}$/, authorized, async (ctx) => {
 })
 
 bot.command('seek', authorized, async (ctx) => {
-  seek(ctx.account.token)
+  apiSeek(ctx.account.token)
 })
 
 bot.action(/^select_(?<selection>[a-h][1-8])$/, async (ctx) => {
-  const game = await getUserGameByMessage(ctx.from.id, ctx.callbackQuery.message.message_id)
+  const game = await dbGetUserGameByMessage(ctx.from.id, ctx.callbackQuery.message.message_id)
   if (game === null) {
     return ctx.answerCbQuery('Game not found.')
   }
@@ -66,7 +75,7 @@ bot.action(/^select_(?<selection>[a-h][1-8])$/, async (ctx) => {
 })
 
 bot.action(/^unselect$/, async (ctx) => {
-  const game = await getUserGameByMessage(ctx.from.id, ctx.callbackQuery.message.message_id)
+  const game = await dbGetUserGameByMessage(ctx.from.id, ctx.callbackQuery.message.message_id)
   if (game === null) {
     return ctx.answerCbQuery('Game not found.')
   }
@@ -76,12 +85,12 @@ bot.action(/^unselect$/, async (ctx) => {
 })
 
 bot.action(/^move_(?<move>(?:[a-h][1-8]){2})$/, async (ctx) => {
-  const game = await getUserGameByMessage(ctx.from.id, ctx.callbackQuery.message.message_id)
+  const game = await dbGetUserGameByMessage(ctx.from.id, ctx.callbackQuery.message.message_id)
   if (!game) {
     return ctx.answerCbQuery('Game not found.')
   }
   const { token, game_id: gameId } = game
-  await makeMove(token, gameId, ctx.match.groups.move)
+  await apiMakeMove(token, gameId, ctx.match.groups.move)
   return ctx.answerCbQuery()
 })
 

@@ -11,7 +11,7 @@ const { CLIENT_ID } = process.env
  * @param  {string} verifier base64url encoded verifier generated before oAuth
  * @return {Promise<string>} The lichess token.
  */
-module.exports.getLichessToken = (authCode, verifier) => fetchJson('https://lichess.org/api/token', {
+module.exports.apiGetLichessToken = (authCode, verifier) => fetchJson('https://lichess.org/api/token', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -33,7 +33,7 @@ module.exports.getLichessToken = (authCode, verifier) => fetchJson('https://lich
  * @param  {string} token lichess auth token
  * @return {Promise<Object>} The lichess user.
  */
-module.exports.getLichessUser = (token) => fetchJson('https://lichess.org/api/account', {
+module.exports.apiGetLichessUser = (token) => fetchJson('https://lichess.org/api/account', {
   headers: {
     'Authorization': `Bearer ${token}`,
   },
@@ -46,7 +46,7 @@ module.exports.getLichessUser = (token) => fetchJson('https://lichess.org/api/ac
  * @param {string} id The challenge id
  * @return {Promise<Object>}
  */
-module.exports.acceptChallenge = (token, id) => fetchJson(`https://lichess.org/api/challenge/${id}/accept`, {
+module.exports.apiAcceptChallenge = (token, id) => fetchJson(`https://lichess.org/api/challenge/${id}/accept`, {
   method: 'POST',
   headers: {
     'Authorization': `Bearer ${token}`,
@@ -59,7 +59,7 @@ module.exports.acceptChallenge = (token, id) => fetchJson(`https://lichess.org/a
  * @param {string} token The token
  * @return {Promise<void>}
  */
-module.exports.seek = (token) => fetch('https://lichess.org/api/board/seek', {
+module.exports.apiSeek = (token) => fetch('https://lichess.org/api/board/seek', {
   headers: {
     'Authorization': `Bearer ${token}`,
   },
@@ -79,7 +79,7 @@ module.exports.seek = (token) => fetch('https://lichess.org/api/board/seek', {
  * @param {string} move The move to play, in UCI format (ex: e2e4)
  * @return {Promise<Object>} { ok }
  */
-module.exports.makeMove = (token, gameId, move) => fetchJson(
+module.exports.apiMakeMove = (token, gameId, move) => fetchJson(
   `https://lichess.org/api/board/game/${gameId}/move/${move}`,
   {
     method: 'POST',
