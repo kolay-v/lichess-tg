@@ -8,8 +8,8 @@ const { CLIENT_ID } = process.env
 /**
  * Gets the lichess token.
  *
- * @param  {string} authCode The auth code from lichess
- * @param  {string} verifier base64url encoded verifier generated before oAuth
+ * @param {string} authCode The auth code from lichess
+ * @param {string} verifier base64url encoded verifier generated before oAuth
  * @return {Promise<string>} The lichess token.
  */
 module.exports.apiGetLichessToken = (authCode, verifier) => fetchJson(
@@ -29,7 +29,6 @@ module.exports.apiGetLichessToken = (authCode, verifier) => fetchJson(
   },
 )
   .then(({ access_token }) => access_token)
-  .catch(console.error)
 
 /**
  * Gets the lichess user.
@@ -61,7 +60,7 @@ module.exports.apiAcceptChallenge = (token, id) => fetchJson(
       'Authorization': `Bearer ${token}`,
     },
   },
-).catch(console.error)
+)
 
 /**
  * Seeks for a pair.
@@ -100,7 +99,7 @@ module.exports.apiMakeMove = (token, gameId, move) => fetchJson(
       'Authorization': `Bearer ${token}`,
     },
   },
-).catch(console.error)
+)
 
 /**
  * Get the main stream for the account.
