@@ -19,7 +19,7 @@ module.exports.fetchJson = (...rest) => fetch(...rest)
  * @return {Promise<any>} Async response
  */
 module.exports.fetchBody = (...rest) => fetch(...rest)
-  .then((res) => res.body())
+  .then((res) => res.body)
   .catch(console.error)
 
 /**

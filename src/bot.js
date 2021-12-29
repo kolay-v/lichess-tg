@@ -70,7 +70,12 @@ bot.action(/^select_(?<selection>[a-h][1-8])$/, async (ctx) => {
     return ctx.answerCbQuery('Game not found.')
   }
   const { board, validMoves } = createGame(game.moves).getStatus()
-  await ctx.editMessageReplyMarkup(render(board.squares, validMoves, ctx.match.groups.selection))
+  await ctx.editMessageReplyMarkup(render(
+    board.squares,
+    validMoves,
+    !game.is_white,
+    ctx.match.groups.selection
+  ))
   await ctx.answerCbQuery()
 })
 
@@ -80,7 +85,7 @@ bot.action(/^unselect$/, async (ctx) => {
     return ctx.answerCbQuery('Game not found.')
   }
   const { board, validMoves } = createGame(game.moves).getStatus()
-  await ctx.editMessageReplyMarkup(render(board.squares, validMoves))
+  await ctx.editMessageReplyMarkup(render(board.squares, validMoves, !game.is_white))
   return ctx.answerCbQuery()
 })
 

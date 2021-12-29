@@ -6,6 +6,7 @@ exports.up = async (knex) =>
       table.integer('account_id').notNullable()
       table.string('game_id').notNullable()
       table.string('moves').nullable()
+      table.boolean('is_white').notNullable().defaultTo(true)
       table.integer('message_id').notNullable()
       table.timestamp('created_at').defaultTo(knex.fn.now()).notNullable()
 

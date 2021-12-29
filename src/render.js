@@ -24,9 +24,10 @@ const emodji = {
 /**
  * @param {Chess.Square[]} board
  * @param {Chess.ValidMove[]} validMoves
+ * @param {boolean} rotate
  * @param {string / null} selection
  */
-const render = (board, validMoves, selection = null) => {
+const render = (board, validMoves, rotate, selection = null) => {
   const horizontal = 'abcdefgh'.split('')
   const vertical = Array.from({ length: 8 }, (item, idx) => idx + 1).reverse()
   let pieceMoves = []
@@ -39,7 +40,7 @@ const render = (board, validMoves, selection = null) => {
    *
    * @type {Array}
    */
-  const boardMarkup = vertical.map((row) => horizontal.map((col) => {
+  let boardMarkup = vertical.map((row) => horizontal.map((col) => {
     /**
      * Find a pressed square.
      *
@@ -85,9 +86,9 @@ const render = (board, validMoves, selection = null) => {
   /**
    * Manage the rotation of a board.
    //  */
-  // if (!isWhite) {
-  //   boardMarkup = boardMarkup.map((row) => row.reverse()).reverse()
-  // }
+  if (rotate) {
+    boardMarkup = boardMarkup.map((row) => row.reverse()).reverse()
+  }
 
   /**
    * Attach additional buttons.
@@ -97,7 +98,7 @@ const render = (board, validMoves, selection = null) => {
   // }
 
   /**
-   * Returns an Extra object.
+   * Returns a keyboard object.
    */
   return Markup.inlineKeyboard(boardMarkup)
 }
