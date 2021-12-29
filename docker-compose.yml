@@ -48,7 +48,7 @@ services:
       db:
         condition: service_healthy
       migration:
-        condition: service_started
+        condition: service_completed_successfully
       rabbit:
         condition: service_healthy
     env_file:
