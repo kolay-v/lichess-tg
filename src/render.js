@@ -3,21 +3,21 @@ const { Markup } = require('telegraf-develop')
 const squareToString = ({ file, rank }) => `${file}${rank}`
 
 const emodji = {
-  black: {
+  white: {
     rook: '♜',
     knight: '♞',
     bishop: '♝',
     queen: '♛',
     king: '♚',
-    pawn: '♟',
+    pawn: '♙',
   },
-  white: {
+  black: {
     rook: '♖',
     knight: '♘',
     bishop: '♗',
     queen: '♕',
     king: '♔',
-    pawn: '♙',
+    pawn: '♟',
   },
 }
 
