@@ -5,7 +5,7 @@ exports.up = async (knex) =>
       table.increments('id')
       table.integer('account_id').notNullable()
       table.string('game_id').notNullable()
-      table.string('moves').notNullable().defaultTo('')
+      table.string('moves').nullable()
       table.integer('message_id').notNullable()
       table.timestamp('created_at').defaultTo(knex.fn.now()).notNullable()
 

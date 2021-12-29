@@ -12,12 +12,19 @@ parserOptions:
     modules: false
 rules:
   max-len: off
+  camelcase: off
   prefer-rest-params: off
   prefer-destructuring: off
   unicorn/prefer-spread: off
   function-paren-newline: off
+  space-before-function-paren:
+    - error
+    - always
   curly:
     - error
+  arrow-parens:
+    - error
+    - always
   comma-dangle:
     - error
     - always-multiline
@@ -50,5 +57,3 @@ rules:
   semi:
     - error
     - never
-  camelcase:
-    - warn

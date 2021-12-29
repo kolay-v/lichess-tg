@@ -3,35 +3,35 @@ const { Markup } = require('telegraf-develop')
 const squareToString = ({ file, rank }) => `${file}${rank}`
 
 const emodji = {
-  black: {
+  white: {
     rook: '♜',
     knight: '♞',
     bishop: '♝',
     queen: '♛',
     king: '♚',
-    pawn: '♟',
+    pawn: '♙',
   },
-  white: {
+  black: {
     rook: '♖',
     knight: '♘',
     bishop: '♗',
     queen: '♕',
     king: '♔',
-    pawn: '♙',
+    pawn: '♟',
   },
 }
 
 /**
  * @param {Chess.Square[]} board
- * @param {Chess.ValidMove[]} moves
+ * @param {Chess.ValidMove[]} validMoves
  * @param {string / null} selection
  */
-const render = (board, moves, selection = null) => {
+const render = (board, validMoves, selection = null) => {
   const horizontal = 'abcdefgh'.split('')
   const vertical = Array.from({ length: 8 }, (item, idx) => idx + 1).reverse()
-  let validMoves
+  let pieceMoves = []
   if (selection) {
-    validMoves = moves.find(move => squareToString(move.src) === selection).squares
+    pieceMoves = validMoves.find((move) => squareToString(move.src) === selection).squares
   }
 
   /**
@@ -45,14 +45,12 @@ const render = (board, moves, selection = null) => {
      *
      * @type {Object}
      */
-    const square = board
-      .find(({ file, rank }) => file === col && rank === row)
-    const isSquareTarget = validMoves && validMoves
-      .find(move => squareToString(move) === squareToString(square))
+    const square = board.find(({ file, rank }) => file === col && rank === row)
+    const isSquareTarget = pieceMoves.find((move) => squareToString(move) === squareToString(square))
     let data = 'none'
     if (
       !selection &&
-      moves.find(move => squareToString(square) === squareToString(move.src))
+      validMoves.find((move) => squareToString(square) === squareToString(move.src))
     ) {
       data = `select_${squareToString(square)}`
     } if (selection) {
@@ -62,6 +60,7 @@ const render = (board, moves, selection = null) => {
         data = 'unselect'
       }
     }
+
     /**
      * If it is a piece.
      */
