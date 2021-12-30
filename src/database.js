@@ -1,3 +1,6 @@
+/**
+ * @typedef {import('telegraf-develop/typings/telegram-types').User} User
+ */
 const knex = require('knex')(require('../knexfile'))
 
 const { generateSecret } = require('./utils')

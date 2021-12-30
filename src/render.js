@@ -1,5 +1,15 @@
+/**
+ * @typedef {import('chess')} Chess
+ */
 const { Markup } = require('telegraf-develop')
 
+/**
+ * Converts chess square to string
+ * @param {Chess.Square} square
+ * @param {number} square.rank
+ * @param {string} square.file
+ * @return {string}{string}
+ */
 const squareToString = ({ file, rank }) => `${file}${rank}`
 
 const emodji = {
@@ -44,7 +54,7 @@ const render = (board, validMoves, rotate, selection = null) => {
     /**
      * Find a pressed square.
      *
-     * @type {Object}
+     * @type {Chess.Square}
      */
     const square = board.find(({ file, rank }) => file === col && rank === row)
     const isSquareTarget = pieceMoves.find((move) => squareToString(move) === squareToString(square))
