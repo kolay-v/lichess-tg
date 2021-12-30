@@ -1,6 +1,10 @@
+/**
+ * @typedef {import('chess')} Chess
+ */
 const { createHash, randomBytes } = require('crypto')
 const fetch = require('node-fetch')
 const chess = require('chess')
+const { Piece } = require('chess/dist/piece')
 
 /**
  * JSON fetch wrapper.
@@ -61,8 +65,15 @@ module.exports.isYourTurn = (isWhite, moves) =>
  */
 module.exports.createGame = (moves) => {
   const game = chess.createSimple()
-  moves.split(' ').filter(Boolean).forEach((move) => {
-    game.move(move.substring(0, 2), move.substring(2, 4))
+  game.on('promote', (...args) => console.log('promote', args))
+  moves.split(' ').filter(Boolean).forEach((notation) => {
+    const { move } = game.move(notation.substring(0, 2), notation.substring(2, 4))
+    if (
+      move.postSquare.piece.type === 'pawn' &&
+      (move.postSquare.rank === 8 || move.postSquare.rank === 1)
+    ) {
+      game.game.board.promote(move.postSquare, Piece.createQueen(move.postSquare.piece.side))
+    }
   })
   return game
 }
