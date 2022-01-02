@@ -62,8 +62,6 @@ typings/
 files/
 
 db.sqlite3
+data/
 
 .idea/
-
-package-lock.json
-yarn.lock

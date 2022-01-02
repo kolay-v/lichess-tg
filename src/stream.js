@@ -1,7 +1,7 @@
 require('dotenv').config()
 const amqp = require('amqplib')
 const ndjson = require('ndjson')
-const { Telegraf } = require('telegraf-develop')
+const { Telegraf, Markup } = require('telegraf-develop')
 
 const render = require('./render')
 
@@ -38,33 +38,38 @@ const stream = async (accountId) => {
     const { id: gameId } = event.game
     let game = await dbFindGame(gameId, accountId)
     if (!game) {
-      const { message_id } = await bot.telegram.sendMessage(id, `started game with id ${gameId}`)
+      const { message_id } = await bot.telegram.sendPhoto(id, {
+        url: 'https://images.fineartamerica.com/images-medium-large-5/bishop-chess-piece-ktsdesign.jpg',
+      }, Markup.inlineKeyboard([Markup.callbackButton('Game is starting', 'none')]).extra())
       game = { id: await dbCreateGame(gameId, accountId, message_id), moves: null, message_id }
     }
     const gameStream = await apiGetGameStream(token, gameId)
     streams.set(accountId, [...(streams.get(accountId) || []), gameStream])
     let isWhite = true
     gameStream.pipe(ndjson.parse()).on('data', async (gameEvent) => {
-      console.log(gameEvent)
       if (gameEvent.type === 'gameFull') {
-        isWhite = gameEvent.white.id === lichessId
         let { moves } = game
+        const newIsWhite = gameEvent.white.id === lichessId
         if (gameEvent.state) {
           moves = gameEvent.state.moves
-          if (game.moves !== moves) {
+          if (game.moves !== moves || isWhite !== newIsWhite) {
             game.moves = moves
-            await dbUpdateGame(game.id, moves)
+            isWhite = newIsWhite
+            await dbUpdateGame(game.id, moves, isWhite)
           }
         }
         const { board, validMoves } = createGame(moves).getStatus()
-        bot.telegram.editMessageText(
-          id,
-          game.message_id,
-          null,
+        /*
+,
           `White ${gameEvent.white.name} (${gameEvent.white.rating})
 
 Black ${gameEvent.black.name} (${gameEvent.black.rating})`,
-          render(board.squares, isYourTurn(isWhite, moves) ? validMoves : []).extra(),
+ */
+        bot.telegram.editMessageMedia(
+          id,
+          game.message_id,
+          null,
+          ...render(board.squares, isYourTurn(isWhite, moves) ? validMoves : [], !isWhite),
         )
       }
       if (gameEvent.type === 'gameState') {
@@ -75,11 +80,11 @@ Black ${gameEvent.black.name} (${gameEvent.black.rating})`,
         game.moves = moves
         await dbUpdateGame(game.id, moves)
         const { board, validMoves } = createGame(moves).getStatus()
-        bot.telegram.editMessageReplyMarkup(
+        bot.telegram.editMessageMedia(
           id,
           game.message_id,
           null,
-          render(board.squares, isYourTurn(isWhite, moves) ? validMoves : []),
+          ...render(board.squares, isYourTurn(isWhite, moves) ? validMoves : [], !isWhite),
         )
       }
       if (isYourTurn(isWhite, game.moves)) {

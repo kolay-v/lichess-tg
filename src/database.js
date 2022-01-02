@@ -1,3 +1,6 @@
+/**
+ * @typedef {import('telegraf-develop/typings/telegram-types').User} User
+ */
 const knex = require('knex')(require('../knexfile'))
 
 const { generateSecret } = require('./utils')
@@ -7,10 +10,15 @@ const { generateSecret } = require('./utils')
  *
  * @param {number} userId The user identifier
  * @param {number} messageId The message identifier
- * @return {Promise<{ token: string, game_id: number, moves: string } | null>} The user game by message.
+ * @return {Promise<{
+ *   token: string,
+ *   game_id: number,
+ *   moves: string,
+ *   is_white: boolean,
+ * } | null>} The user game by message.
  */
 module.exports.dbGetUserGameByMessage = (userId, messageId) => knex('games')
-  .select('token', 'game_id', 'moves')
+  .select('token', 'game_id', 'moves', 'is_white')
   .where({ message_id: messageId, user_id: userId })
   .leftJoin('accounts', 'games.account_id', 'accounts.id')
   .first()
@@ -113,7 +121,11 @@ module.exports.dbRefreshSecret = async (id) => {
  *
  * @param {string} gameId lichess id
  * @param {number} accountId
- * @return {Promise<{ id: number, moves: string | null, message_id: number } | null>} game if found
+ * @return {Promise<{
+ *   id: number,
+ *   moves: string | null,
+ *   message_id: number,
+ * } | null>} game if found
  */
 module.exports.dbFindGame = (gameId, accountId) => knex('games')
   .select('id', 'message_id', 'moves')
@@ -123,10 +135,10 @@ module.exports.dbFindGame = (gameId, accountId) => knex('games')
 /**
  * Creates a db game.
  *
- * @param {<type>} gameId The game identifier
- * @param {<type>} accountId The account identifier
- * @param {<type>} messageId The message identifier
- * @return {<type>}
+ * @param {string} gameId The game identifier
+ * @param {number} accountId The account identifier
+ * @param {number} messageId The message identifier
+ * @return {Promise<number>}
  */
 module.exports.dbCreateGame = async (gameId, accountId, messageId) => (await knex('games')
   .insert({
@@ -152,8 +164,9 @@ module.exports.dbGetAccountById = (id) => knex('accounts')
  *
  * @param {id} id The identifier of the game.
  * @param {string} moves The moves separaded by a space
+ * @param {boolean} isWhite Is user's colour white
  * @return {Promise}
  */
-module.exports.dbUpdateGame = (id, moves) => knex('games')
-  .update({ moves })
+module.exports.dbUpdateGame = (id, moves, isWhite) => knex('games')
+  .update({ moves, is_white: isWhite })
   .where({ id })
