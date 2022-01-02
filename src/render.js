@@ -3,6 +3,8 @@
  */
 const { Markup } = require('telegraf-develop')
 
+const { BOARD_IMAGE_URL } = process.env
+
 /**
  * Converts chess square to string
  * @param {Chess.Square} square
@@ -11,6 +13,40 @@ const { Markup } = require('telegraf-develop')
  * @return {string}{string}
  */
 const squareToString = ({ file, rank }) => `${file}${rank}`
+
+const getFen = (board) => {
+  const fen = []
+  const squares = board
+    .reduce((acc, cur, idx) => {
+      const outerIdx = Math.floor(idx / 8)
+      acc[outerIdx] = acc[outerIdx] || []
+      acc[outerIdx].push(cur)
+      return acc
+    }, [])
+    .flatMap((row) => row.reverse())
+    .reverse()
+
+  for (let index = 0; index < squares.length; index += 1) {
+    const square = squares[index]
+
+    if (square.file === 'a' && square.rank < 8) {
+      fen.push('/')
+    }
+
+    if (square.piece) {
+      const transform = `to${square.piece.side.name === 'white' ? 'Upp' : 'Low'}erCase`
+      fen.push((square.piece.notation || 'p')[transform]())
+    } else {
+      if (isNaN(Number(fen[fen.length - 1]))) {
+        fen.push(1)
+      } else {
+        fen[fen.length - 1] += 1
+      }
+    }
+  }
+
+  return fen.join('')
+}
 
 const emodji = {
   white: {
@@ -106,11 +142,17 @@ const render = (board, validMoves, rotate, selection = null) => {
   // if (actions) {
   //   boardMarkup.push(actions)
   // }
+  const marks = pieceMoves.map(({ file, rank }) => `${file}${rank}`).join(',')
+  const url = `
+${BOARD_IMAGE_URL}
+${getFen(board).replace(/\//g, '%2F')}.jpg?
+${Object.entries({ rotate: Number(rotate), marks }).map((pair) => pair.join('=')).join('&')}
+`.replaceAll('\n', '')
 
-  /**
-   * Returns a keyboard object.
-   */
-  return Markup.inlineKeyboard(boardMarkup)
+  return [
+    { type: 'photo', media: url },
+    Markup.inlineKeyboard(boardMarkup).extra(),
+  ]
 }
 
 module.exports = render
