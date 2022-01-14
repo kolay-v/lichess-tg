@@ -51,7 +51,8 @@ module.exports.generateSecret = (depth = 16, format = '') => format
  * @return {boolean} `true` if your turn, `false` otherwise.
  */
 module.exports.isYourTurn = (isWhite, moves) =>
-  !(moves.split(' ').filter(Boolean).length % 2) === isWhite
+  // eslint-disable-next-line eqeqeq
+  moves.split(' ').filter(Boolean).length % 2 != isWhite
 
 /**
  * Creates chess game from lichess moves
